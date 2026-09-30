@@ -14,10 +14,9 @@ PRODUCT_VERSION = re.compile(r"(?i)(?<![a-z0-9@])v([0-9]+)(?![a-z0-9])")
 EXTERNAL_REFERENCE = re.compile(
     r"(?i)(?:[a-z][a-z0-9+.-]*://[^\s<>\"']+|\b10\.[0-9]{4,9}/[^\s<>\"']+)"
 )
-# [수정: 0 이영] 2026-09-30 23:56 KST — 공식 Data.gov API 경로·서비스 이름의 실제 버전을 제품 담당 번호와 구분한다.
-SERVICE_VERSION_REFERENCE = re.compile(
-    r"(?i)(?:\bData[.]gov " + ("v" + str(4)) + r"\b|/technology/datagov/" + ("v" + str(4)) + r"/search[?]?)"
-)
+# [수정: 0 이영] 2026-10-01T01:05:53+09:00 — Data.gov 공식 API 이름·경로의 실제 버전만 구간 단위로 제외하고 같은 문장의 제품 표기는 검사한다.
+EXTERNAL_API_LABEL = re.compile(r"(?i)\bData\.gov(?:\s+(?:공식\s+)?API)?\s+v[4]\b")
+EXTERNAL_API_PATH = re.compile(r"/technology/datagov/v[4]/search\b")
 TEXT_SUFFIXES = {".md", ".json", ".txt", ".py", ".js", ".html", ".css", ".yml", ".yaml", ".toml"}
 # [수정: 0 이영] 2026-10-01 00:13 KST — Git 제외된 운영 원출력·팀 저장소는 공개 제품 표시 검사 범위와 분리한다.
 IGNORED_PARTS = {".git", ".venv", "venv", "node_modules", "__pycache__", ".pytest_cache", "audit", "team_data", "runtime"}
@@ -26,7 +25,8 @@ PROTECTED_PREFIXES = (("data",), ("finals", "evidence"))
 
 def has_product_version(text):
     visible = EXTERNAL_REFERENCE.sub("", text)
-    visible = SERVICE_VERSION_REFERENCE.sub("", visible)
+    visible = EXTERNAL_API_LABEL.sub("", visible)
+    visible = EXTERNAL_API_PATH.sub("", visible)
     label = "".join(chr(code) for code in (0xC900, 0xBE44, 0xBCF8))
     numeric_release = re.finditer(r"(?i)(?<![a-z0-9.])([0-9]+)\.0\.0(?![a-z0-9.])", visible)
     return (label in visible

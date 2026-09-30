@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "registration_scope": "Developer evidence mappings only; 3 independently sourced paper-data pairs have verified publisher-source bytes and public data (BAT, COVID FAIR, penguins); 5 executable arithmetic claims. Wine pair is retained as a blocked search-index-only lead and is not counted among the 3. No human approval, author-code execution, or whole-paper reproduction.",
+  "registration_scope": "Developer evidence mappings only; 3 independently sourced paper-data pairs have publisher-source captures with hashed public derivatives where contact addresses were removed and public data (BAT, COVID FAIR, penguins); 5 executable arithmetic claims. Wine pair is retained as a blocked search-index-only lead and is not counted among the 3. No human approval, author-code execution, or whole-paper reproduction.",
   "cases": [
     {
       "claim_id": "BAT-POSITIVE-N",
@@ -28,8 +28,8 @@
       "collected_at": "2026-09-28",
       "license": "CC BY-NC-ND 4.0 (dataset; noncommercial, no derivatives)",
       "license_url": "https://creativecommons.org/licenses/by-nc-nd/4.0/",
-      "scope_note": "Existing author CSV and publisher extract reused byte-for-byte; count is positive scan records and article says no positive patient had more than one active scan.",
-      "source_capture_method": "Unmodified publisher HTML response body; bytes/hash match prior source-pair provenance.",
+      "scope_note": "Existing author CSV reused byte-for-byte; publisher HTML is a public derivative with email contacts redacted. Original and public-derivative source hashes are recorded separately; count is positive scan records and article says no positive patient had more than one active scan.",
+      "source_capture_method": "Publisher HTML capture was used as the original source; this repository stores a public derivative with contact addresses removed. source_sha256 identifies the current public derivative, not byte-for-byte publisher response bytes. Source URL and original retrieval date are preserved.",
       "source_original_url": "https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0149458",
       "source_retrieved_at": "2026-09-26T06:58:35Z (existing capture)"
     },
@@ -59,8 +59,8 @@
       "collected_at": "2026-09-28",
       "license": "CC BY-NC-ND 4.0 (dataset; noncommercial, no derivatives)",
       "license_url": "https://creativecommons.org/licenses/by-nc-nd/4.0/",
-      "scope_note": "Existing author CSV and publisher extract reused byte-for-byte; 53 selected records, no missing Age.y; half-unit rounding tolerance at two decimal places.",
-      "source_capture_method": "Unmodified publisher HTML response body; bytes/hash match prior source-pair provenance.",
+      "scope_note": "Existing author CSV reused byte-for-byte; publisher HTML is a public derivative with email contacts redacted. Original and public-derivative source hashes are recorded separately; 53 selected records, no missing Age.y; half-unit rounding tolerance at two decimal places.",
+      "source_capture_method": "Publisher HTML capture was used as the original source; this repository stores a public derivative with contact addresses removed. source_sha256 identifies the current public derivative, not byte-for-byte publisher response bytes. Source URL and original retrieval date are preserved.",
       "source_original_url": "https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0149458",
       "source_retrieved_at": "2026-09-26T06:58:35Z (existing capture)"
     },
@@ -241,11 +241,12 @@
       "evidence_status": "REUSED_EXISTING_SOURCE_PAIR; ORIGINAL_HTML_CAPTURED_AND_HASH_MATCHES_PRIOR_CAPTURE",
       "collected_at": "2026-09-28",
       "source_original_url": "https://journal.r-project.org/articles/RJ-2022-020/",
-      "source_capture_method": "Unmodified HTTP response body captured 2026-09-28; SHA256 equals the publisher HTML digest recorded in SOURCE_ATTRIBUTION.md (2026-09-25). Quote substring is present in the source HTML bytes.",
+      "source_capture_method": "Publisher HTML capture was used as the original source; this repository stores a public derivative with contact addresses removed. source_sha256 identifies the current public derivative, not byte-for-byte publisher response bytes. Source URL and original retrieval date are preserved.",
       "license": "CC BY 4.0 (article text); CC0 (data)",
       "license_url": "https://creativecommons.org/licenses/by/4.0/",
       "data_original_url": "https://raw.githubusercontent.com/allisonhorst/palmerpenguins/8957207b78d6ccd1b4654a9dd9c9041b657478ab/inst/extdata/penguins_raw.csv",
       "scope_note": "Author raw CSV from pinned upstream commit; row count only. No missingness or full paper claim."
     }
-  ]
+  ],
+  "_change_note": "2026-10-01T01:05:53+09:00 — 공개 HTML 연락처 제거 사본을 발행사 원문 그대로라고 적은 설명 정정. 원자료·출처·관측일·현재 지문·사례 수치는 유지."
 }
