@@ -2,10 +2,10 @@
 
 ## [0 이영] — 2026-10-01T00:22:25+09:00 — 코드·로직·로그 검토 수정과 배포 안전장치
 
-- 수정: 계산 엔진(`evidence_gate`)의 큰 오프셋 회귀·평균 오버플로·입력 예외, CLI 명세 JSON의 중복 키·NaN 통과, 승인 기록의 지문 표기. 집중 시연(`finals`)의 실호출 기본 꺼짐·호출 상한·라벨 키만 읽기·엄격 스키마 요청 형식·분모 승인 게이트·분모 계산·상수 단일화·JSON 실행 로그. 루트 `.streamlit/config.toml`, 제품 시험 CI(`tests.yml`), `docs/0_이영_운영설정.md`. Codex 감사의 코어 8개 수정안 병합과 Data.gov 경로 복원, 검사기의 외부 API 경로 허용.
+- 수정: 계산 엔진(`evidence_gate`)의 큰 오프셋 회귀·평균 오버플로·입력 예외, CLI 명세 JSON의 중복 키·NaN 통과, 승인 기록의 지문 표기. 집중 시연(`finals`)의 실호출 기본 꺼짐·호출 상한·라벨 키만 읽기·엄격 스키마 요청 형식·분모 승인 게이트·분모 계산·상수 단일화·JSON 실행 로그. 루트 `.streamlit/config.toml`, 제품 시험 CI(`tests.yml`), `docs/0_이영_운영설정.md`. Codex 감사의 코어 8개 수정안 병합과 Data.gov 경로 복원, 검사기의 외부 API 경로 허용. 저장소 위생·정규성 검사기(`tools/repo_hygiene.py`), 인용문·주장 문장의 정규형 비교(공백·따옴표·한글 NFC/NFD 차이 무시, 내용 변경은 계속 차단), 팀 지식 JSON의 즉시 반영(재시작 불필요)과 DOI 표기 정규화, 화면의 판정 이유·계산 요약 문장, 폐기 예정 `use_container_width` 인자 제거.
 - 이유: 공개 배포에서 방문자가 유료 호출을 반복할 수 있었고, 경계 입력에서 판정 대신 예외로 끝나는 경로와 승인 기록이 실제와 다르게 남는 경로가 재현됐다. 표기 정리가 외부 API 경로를 깨뜨렸다.
 - 영향: 실시간 AI는 서버 설정 `NAIS_ALLOW_LIVE_AI=1`일 때만 동작한다(기본 꺼짐). 분모가 다르면 승인할 수 없다. 판정 규칙·허용오차·봉인 입력은 바꾸지 않았다.
-- 검증: `pytest tests finals/tests tools/test_product_metadata_guard.py` 189 통과·1 건너뜀(Claude `.venv`, Windows, Python 3.13), 봉인 C01~C08 로컬 재실행 8/8 동일, 메타데이터 검사 PASS. 상세는 `공유 기록/0_이영_Claude검토_20261001.md`(로컬 기록).
+- 검증: `pytest tests finals/tests tools/test_product_metadata_guard.py` 210 통과·1 건너뜀(Claude `.venv`, Windows, Python 3.13), 봉인 C01~C08 로컬 재실행 8/8 동일, 메타데이터 검사 PASS. 상세는 `공유 기록/0_이영_Claude검토_20261001.md`(로컬 기록).
 - 남은 문제: 실제 모델의 엄격 스키마 응답·Linux·Cloud 배포·화면 직접 조작은 미확인. 봉인 AI 비교 16건을 실행하는 코드가 없다.
 
 ## [1 이채우] — 2026-09-30T23:33:11+09:00 — 통합 코드 현황·기능 경계·원출처 점검
