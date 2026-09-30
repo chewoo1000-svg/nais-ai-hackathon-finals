@@ -14,5 +14,6 @@ NAIS AI 해커톤 본선
 - [변경 이력](CHANGELOG.md)
 - [대화 기록](docs/conversation-log.md)
 - [작업 규칙](AGENTS.md)
+- [전체 참고자료 검토](docs/reference-review.md)
 
 중요한 구현, 문제 해결, 설계 결정과 제출 준비가 완료되면 적절한 검증 후 커밋하고 GitHub에 올립니다.
