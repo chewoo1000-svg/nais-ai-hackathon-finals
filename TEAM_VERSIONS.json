@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "recorded_at_kst": "2026-09-30T19:50:11+09:00",
+  "recorded_at_kst": "2026-09-30T21:59:06+09:00",
   "finals_started_at_kst": "2026-09-30T17:55:37+09:00",
   "version_meaning": "담당자별 고정 작업 번호; 기능 릴리스나 의존성 버전과 별개",
   "contributors": [
@@ -22,9 +22,9 @@
     }
   ],
   "this_chat": {
-    "name": "조지현",
-    "version": 3,
-    "commit_prefix": "[3 조지현]"
+    "name": "이영",
+    "version": 0,
+    "commit_prefix": "[0 이영]"
   },
   "baseline_tag": "v0.0.0",
   "timestamp_meaning": {
@@ -33,5 +33,6 @@
     "source_created_at": "확인 가능한 자료 작성 시각",
     "executed_at": "실제 실행 시각",
     "imported_at": "자료를 작업에 실제 반영한 시각"
-  }
+  },
+  "upload_not_before_kst": "2026-09-30T17:00:00+09:00"
 }

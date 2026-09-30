@@ -170,7 +170,7 @@
   "contributor_version": 1,
   "review_snapshot_version": "0.0.0",
   "document_editor_contributor_version": 3,
-  "preparation_source_versions": [
-    "105.0.0"
+  "preparation_source_labels": [
+    "검토 대상 준비본"
   ]
 }

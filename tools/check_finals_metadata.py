@@ -1,7 +1,9 @@
 """담당 번호와 본선 작업 시각의 의미를 읽기 전용으로 검사한다."""
 
 import json
+import os
 import re
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -21,8 +23,23 @@ def check():
         failures.append("이 채팅 담당 번호 불일치")
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     lead = version.split(".")[0]
-    if lead not in {str(v) for v in EXPECTED.values()}:
-        failures.append("VERSION 앞자리가 담당 번호가 아님")
+    if version not in {str(v) for v in EXPECTED.values()}:
+        failures.append("VERSION은 담당자 고정 번호 0/1/2/3이어야 함")
+
+    upload_baseline = datetime.fromisoformat(team["upload_not_before_kst"])
+    for path in (ROOT / "docs").rglob("*"):
+        if path.is_file() and path.suffix in {".md", ".json"}:
+            if re.search(r"(?i)(?<![a-z0-9])v105\b|\b105\.0\.0\b", path.read_text(encoding="utf-8")):
+                failures.append(f"{path.relative_to(ROOT)}: 프로젝트 버전 표기 불일치")
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        subject = subprocess.check_output(["git", "log", "-1", "--format=%s"], cwd=ROOT, text=True).strip()
+        match = re.match(r"^\[([0-3]) (이영|이채우|임도윤|조지현)\]", subject)
+        if not match or EXPECTED.get(match[2]) != int(match[1]) or match[1] != version:
+            failures.append("업로드 담당자와 VERSION 불일치")
+        for field in ("%aI", "%cI"):
+            stamp = datetime.fromisoformat(subprocess.check_output(["git", "log", "-1", f"--format={field}"], cwd=ROOT, text=True).strip())
+            if stamp < upload_baseline or stamp > datetime.now(stamp.tzinfo):
+                failures.append("커밋 시각이 업로드 기준 범위를 벗어남")
 
     baseline = datetime.fromisoformat(team["finals_started_at_kst"])
     now = datetime.now(baseline.tzinfo)
