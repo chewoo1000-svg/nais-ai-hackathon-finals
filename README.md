@@ -1,0 +1,42 @@
+# NAIS AI 해커톤 본선
+
+- 본선 시작 기준: **2026-09-30 17:55:37 KST**
+- 본선 시작 태그: **v0.0.0**
+- 최근 반영: **버전 1 · 이채우** (VERSION = 마지막으로 올린 담당자 번호)
+- 팀 번호: 이영 0 / 이채우 1 / 임도윤 2 / 조지현 3. 번호는 증가하지 않습니다.
+- 공식 저장소: https://github.com/twozero3213-beep/nais-ai-hackathon-finals
+- 현재 범위: 저장소 연결, 자료 검토, 구현·실험·시연·발표 계획, 최소 실행 경로(`evidence_gate/`: 정규 명세 v2 → 결정론적 계산 → 판정 → 기록). A2 저자 파일 행 대응 시연(`evidence_gate.demo_a2`). 화면·AI 호출·3조건 비교는 미실행입니다.
+
+## 본선 작업 기록
+
+- [담당 버전 기준](TEAM_VERSIONS.json)
+- [작업 규칙](AGENTS.md)
+- [대화 기록](docs/conversation-log.md)
+- [자료 검토](docs/finals-review-20260930.md)
+- [혁신성·실현가능성 실행 전략](docs/finals-strategy/3_조지현_실행전략.md)
+- [필요성·차별점·사례 팩트체크](docs/3_조지현_필요성_차별점_사례팩트체크.md)
+- [차별점·업그레이드·사례 우선순위(JSON)](docs/3_조지현_근거관문_차별점_업그레이드_사례우선순위.json)
+- [구체화 전문가 피드백·전수 검사](docs/3_조지현_구체화_전문가피드백_전수검사.md)
+- [P2 정규 명세·P1 최소 실행 경로 구현 기록](docs/3_조지현_P2P1_구현기록.md)
+- [P5 행 대응 진단·P3 A2 저자 파일 시연 구현 기록](docs/3_조지현_P5P3_A2시연_구현기록.md)
+
+## 실행
+
+```bash
+python -m evidence_gate check --spec evidence_gate/examples/penguins_raw_rows.spec.json --data evidence_gate/fixtures/penguins_raw.csv
+python -m evidence_gate.demo_a2 --workdir /tmp/nais-a2 --record /tmp/nais-a2/runs.jsonl
+python -m unittest discover -s tests -t .
+```
+
+중요한 결과는 검증 후 바로 GitHub에 반영합니다.
+
+## 문제 정의·조사·검증 계획 — 1 이채우
+
+- [단계별실행과반영계획](docs/finals-strategy/1_이채우_단계별실행과반영계획.md)
+- [문제정의와사례선정](docs/research/1_이채우_문제정의와사례선정.md)
+- [문헌조사와원출처검증](docs/research/1_이채우_문헌조사와원출처검증.md)
+- [사례와기능_검증계획](docs/research/1_이채우_사례와기능_검증계획.md)
+- [팀 검토 통합과 보완 순서](1_이채우_팀검토통합과보완순서.md)
+
+- [최소 실행 경로 독립 검증과 다음 보완 순서](1_이채우_단계별검증과보완계획.md)
+- [경계 검증 재현 코드](1_이채우_경계검증.py) · [실제 실행 결과](1_이채우_경계검증_실행결과.json)
