@@ -18,11 +18,19 @@ def _within(computed, reported, tolerance):
     return abs(computed - reported) <= tolerance
 
 
+def _spec_digest(spec):
+    # [수정: 0 이영 · Claude] 2026-09-30 23:51 KST — 명세에 NaN 등이 있으면 지문 계산이 ValueError로 죽어 BLOCK 판정을 못 남겼다(1_이채우_경계검증 nonfinite_report).
+    try:
+        return spec_sha256(spec) if isinstance(spec, dict) else None
+    except (TypeError, ValueError):
+        return None
+
+
 def _result(spec, data_sha, verdict, reason, **extra):
     return {"claim_id": spec.get("claim_id") if isinstance(spec, dict) else None,
             "method": spec.get("method") if isinstance(spec, dict) else None,
             "verdict": verdict, "reason_code": reason,
-            "spec_sha256": spec_sha256(spec) if isinstance(spec, dict) else None,
+            "spec_sha256": _spec_digest(spec),
             "data_sha256": data_sha, **extra}
 
 
@@ -54,6 +62,9 @@ def evaluate(spec, data, *, reference_ids=None, approvals=None):
         return _alignment(spec, data_sha, header, selected, reference_ids, approvals)
     except GateError as exc:
         return _result(spec, data_sha, "BLOCK", exc.code, message=str(exc), details=exc.details)
+    except ArithmeticError as exc:
+        # [수정: 0 이영 · Claude] 2026-09-30 23:51 KST — 계산 중 수 범위 오류도 예외로 끝내지 않고 BLOCK 판정과 기록을 남긴다(fail-closed).
+        return _result(spec, data_sha, "BLOCK", "NUMERIC_ERROR", message=f"계산 중 수 범위 오류: {type(exc).__name__}")
 
 
 def _scalar(spec, data_sha, value, info):
@@ -99,9 +110,13 @@ def _approval(approvals, kind, data_sha, reference_sha):
         if approval.get(key) not in (None, current):
             raise GateError("APPROVAL_STALE", "승인 뒤 입력이 바뀌어 이전 승인을 쓸 수 없음",
                             {"approval": kind, "field": key, "approved": approval[key], "current": current})
+    # [수정: 0 이영 · Claude] 2026-09-30 23:51 KST — 승인에 지문이 없어도 현재 입력 지문을 bound_*로 적어 "이 입력에 묶여 승인됨"으로 보이게 했다
+    # (1_이채우_경계검증 changed_reference_same_approval). 승인이 실제로 가진 지문만 적고, 없는 것은 unbound_fields에 밝힌다.
+    unbound = [key for key in ("data_sha256", "reference_sha256") if approval.get(key) is None]
     return {"type": kind, "approver": approval["approver"], "basis": approval["basis"],
             "approved_at_kst": approval.get("approved_at_kst"),
-            "bound_data_sha256": data_sha, "bound_reference_sha256": reference_sha}
+            "bound_data_sha256": approval.get("data_sha256"), "bound_reference_sha256": approval.get("reference_sha256"),
+            "unbound_fields": unbound}
 
 
 def _alignment(spec, data_sha, header, selected, reference_ids, approvals):

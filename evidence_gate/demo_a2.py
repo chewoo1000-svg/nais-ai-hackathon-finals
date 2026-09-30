@@ -77,7 +77,9 @@ def run(blobs, approver, record=None):
     step("1_원본_그대로", spec, data)
     first = reference[0]
     approval = {"approver": approver, "basis": "Species 열 이름 기준 재정렬", "approved_at_kst": now_kst(),
-                "data_sha256": spec["data_fingerprint"]}
+                "data_sha256": spec["data_fingerprint"],
+                # [수정: 0 이영 · Claude] 2026-09-30 23:51 KST — 시연 승인도 기준 목록 지문에 묶어 기준이 바뀌면 이전 승인을 쓰지 못하게 한다.
+                "reference_sha256": hashlib.sha256("\n".join(reference).encode("utf-8")).hexdigest()}
     step("2_사람_승인_재정렬", spec, data, {"reorder": approval})
 
     dropped = _without_line(data, lambda line: line.startswith(first + ","))

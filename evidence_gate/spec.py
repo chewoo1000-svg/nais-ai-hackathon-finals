@@ -26,7 +26,13 @@ SHA256 = re.compile(r"[0-9a-f]{64}")
 
 
 def _number(value):
-    return type(value) in (int, float) and math.isfinite(value)
+    if type(value) not in (int, float):
+        return False
+    try:
+        return math.isfinite(value)
+    except OverflowError:
+        # [수정: 0 이영 · Claude] 2026-09-30 23:51 KST — 10**400 같은 큰 정수는 float로 바꿀 수 없어 validate가 예외로 죽었다. 숫자로 인정하지 않는다.
+        return False
 
 
 def _text(value, limit=4000):
@@ -161,12 +167,13 @@ def validate(spec):
         errors.append("reported_df: 1 이상 정수 또는 null")
 
     # 방법별로 계산에 꼭 필요한 필드
+    # [수정: 0 이영 · Claude] 2026-09-30 23:51 KST — method가 배열·객체이면 dict 조회가 TypeError로 죽었다(1_이채우_경계검증 method_array). 문자열일 때만 조회한다.
     needs = {
         "row_count": ("reported_value",),
         "mean": ("reported_value", "variable", "missing_policy", "missing_tokens"),
         "ols_regression": ("outcome", "predictors", "reported", "missing_policy", "missing_tokens"),
         "row_alignment": ("data_id_column", "reference_ids_source"),
-    }.get(method, ())
+    }.get(method, ()) if isinstance(method, str) else ()
     missing.extend(key for key in needs if get(key) is None)
     if method in ("mean", "ols_regression") and policy == "not_applicable":
         errors.append(f"missing_policy: {method}에는 error 또는 complete_case")
