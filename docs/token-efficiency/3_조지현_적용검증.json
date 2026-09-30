@@ -2,7 +2,6 @@
   "schema_version": 1,
   "contributor_version": 3,
   "contributor_name": "조지현",
-  "_change_note": "새 효율 운영 규칙의 입력 지문·구조·메타데이터·링크·diff 검증을 실제 수행한 새 기록. 이전 실행 기록과 첨부 사용량을 대체하지 않는다.",
   "recorded_at_kst": "2026-09-30T20:48:43+09:00",
   "code_base_commit": "7a65154fc0bec227350b4d528f940384a272a8e1",
   "input": {

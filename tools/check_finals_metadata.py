@@ -11,14 +11,11 @@ EXPECTED = {"이영": 0, "이채우": 1, "임도윤": 2, "조지현": 3}
 
 
 def check():
-    # 수정 이유: 담당자 고정 번호를 릴리스 증가 번호와 혼동하는 문제를 잡는다.
     failures = []
     team = json.loads((ROOT / "TEAM_VERSIONS.json").read_text(encoding="utf-8"))
     actual = {entry["name"]: entry["version"] for entry in team["contributors"]}
     if actual != EXPECTED:
         failures.append("담당자 번호 불일치")
-    # [수정: 0 이영] 2026-09-30T21:15:33+09:00 — VERSION 파일은 팀원 4명이 함께 쓰므로 3 고정이면
-    # 다른 담당자가 올릴 때마다 FAIL. 마지막으로 올린 담당 번호(0~3, "0.1.0"처럼 앞자리)인지 검사한다.
     chat = team["this_chat"]
     if EXPECTED.get(chat["name"]) != chat["version"] or chat["commit_prefix"] != f"[{chat['version']} {chat['name']}]":
         failures.append("이 채팅 담당 번호 불일치")
@@ -27,8 +24,6 @@ def check():
     if lead not in {str(v) for v in EXPECTED.values()}:
         failures.append("VERSION 앞자리가 담당 번호가 아님")
 
-    # 수정 이유: 문서 갱신과 실행 시각을 구분하며 KST 작업 메타데이터만 검사한다.
-    # 논문 발행일, 관측일, 스키마 규격 연도, Git 시각을 수정 대상으로 삼지 않는다.
     baseline = datetime.fromisoformat(team["finals_started_at_kst"])
     now = datetime.now(baseline.tzinfo)
     json_count = 0
@@ -48,7 +43,6 @@ def check():
         except (ValueError, KeyError, TypeError) as exc:
             failures.append(f"{path.relative_to(ROOT)}: 형식 오류 {type(exc).__name__}")
 
-    # 수정 이유: 문서명 변경 뒤 깨진 내부 링크가 남는 문제를 확인한다.
     for name in ("README.md", "AGENTS.md"):
         for target in re.findall(r"\]\(([^)]+)\)", (ROOT / name).read_text(encoding="utf-8")):
             if "://" not in target and not (ROOT / target.split("#", 1)[0]).exists():

@@ -6,7 +6,6 @@
   "status": "PASS",
   "failures": [],
   "limits": "앱 동작·날짜의 사실성·논문·LLM 성능을 검증한 결과가 아님",
-  "_change_note": "담당 번호·시각 필드·핵심 연결 파일을 실제 검사한 결과. 제품 시험과 구분.",
   "artifact_checks": {
     "observations_rows": 24,
     "all_observations_not_run": true,
