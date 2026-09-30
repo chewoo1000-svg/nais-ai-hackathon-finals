@@ -7,7 +7,9 @@
     "comparison-protocol.json": "d29b2710fa10c0b08fe4b011d3a3fc3692e249f0ecca9f8ccf9ad9defb9eaf78",
     "extraction.schema.json": "772306091d8d1dfbd211cfbaecd96ab490c4a22ce809c10330862e8d9871e5a7",
     "observations-template.csv": "f15f97679c9a6777345197c7587ddd6483c5bb8e073aff253530d39bad439300",
-    "3_조지현_실행전략.md": "3a4bf3338163fc02059e0902e502f97858f5d413af1ab9f6799e522e67a3ad4a"
+    "3_조지현_실행전략.md": "54c6a20047a8196e2fc2982ba9a3cdbdb223dc00d3e23c77b75bce22330e9f12"
   },
-  "document_updated_at_kst": "2026-09-30T20:08:56+09:00"
+  "document_updated_at_kst": "2026-09-30T21:15:33+09:00",
+  "hash_basis": "Git 저장 바이트(LF). .gitattributes의 -text로 체크아웃도 같은 바이트",
+  "_correction_note": "0 이영 2026-09-30T21:15:33+09:00: af9ca9a(20:24 웹 편집) 뒤 실행전략.md 지문이 갱신되지 않아 불일치하던 값(cb1f524 판 지문 3a4bf333…)을 현재 파일 지문으로 교체"
 }

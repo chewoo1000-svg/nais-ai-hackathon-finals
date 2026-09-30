@@ -170,5 +170,13 @@
   "contributor_version": 1,
   "review_snapshot_version": "0.0.0",
   "document_editor_contributor_version": 3,
+  "preparation_source_versions": [
+    "105.0.0"
+  ],
+  "provenance_correction": {
+    "contributor": "0 이영",
+    "recorded_at_kst": "2026-09-30T21:15:33+09:00",
+    "reason": "19:50 정리에서 빠진 준비본 버전(105.0.0) 표기를 1 이채우의 원 기록(2fb35f1) 그대로 복원. 자료 파일명·경로는 로컬 출처 대조 기록 유지"
+  },
   "_change_note": "담당자별 고정 번호를 순차 제품 버전과 혼동하지 않도록 수정. 문서 갱신 시각은 실제 저장 시각이며 자료 작성·실행 시각과 구분."
 }
