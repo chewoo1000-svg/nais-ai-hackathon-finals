@@ -75,7 +75,7 @@ def test_key_is_read_only_from_environment_or_labeled_line(monkeypatch, tmp_path
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("NAIS_SECRETS_FILE", raising=False)
     home = tmp_path / "home"
-    desktop_file = home / "OneDrive" / "Desktop" / "NAIS 해커톤 본선" / "각종 API 원문.txt"
+    desktop_file = home / "OneDrive" / "Desktop" / "NAIS 해커톤 본선" / "각종 API 원문.txt"  # hygiene: allow-local-path
     desktop_file.parent.mkdir(parents=True)
     desktop_file.write_text("아무 서비스의 키: sk-" + "a" * 30 + "\n", encoding="utf-8")
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: home))
