@@ -330,3 +330,6 @@ def validate_proposal_json(text, original_claim, dataframe, dataset_hash):
         return result
     result.update(state='PROPOSED', candidate_claim=claim, analysis_spec=spec, contract=contract)
     return result
+
+
+

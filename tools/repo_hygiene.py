@@ -18,11 +18,12 @@ TEXT_SUFFIXES = {".py", ".md", ".json", ".toml", ".yml", ".yaml", ".txt", ".ps1"
 # 줄바꿈은 코드·설정에서만 강제한다. 문서·게시 기록(JSON)은 팀원이 올린 바이트 그대로 지문·기록에 묶여 있을 수 있어 고치지 않는다.
 CODE_SUFFIXES = {".py", ".toml", ".yml", ".yaml", ".ps1"}
 ALLOW_LOCAL_PATH = "hygiene: allow-local-path"   # 경로를 일부러 다루는 시험 줄에만 붙인다
-SECRET = re.compile(r"sk-(?!ant-)[A-Za-z0-9_-]{20,}|sk-ant-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}"
+SECRET = re.compile(r"sk-(?!ant-|test)[A-Za-z0-9_-]{20,}|sk-ant-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}"
                     r"|AIza[0-9A-Za-z_-]{30,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----")
 LOCAL_PATH = re.compile(r"[A-Za-z]:[\\/]+Users[\\/]|OneDrive|/Users/[A-Za-z0-9_.-]+/|/home/[A-Za-z0-9_.-]+/")
 EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
-EMAIL_ALLOWED = ("example.com", "example.org", "users.noreply.github.com", "noreply.anthropic.com", "noreply@")
+EMAIL_ALLOWED = ("example.com", "example.org", "example.test", "users.noreply.github.com", "noreply.anthropic.com", "noreply@")
+# 시험용 가짜 값 규약: 비밀값 형태 문자열은 sk-test…로 시작하고, 이메일은 예약 도메인(example.*)을 쓴다. 그 밖의 값은 실제 값으로 본다.
 # 표기 정리가 버전 표기(v숫자)를 case숫자로 바꿔 URL·API 경로를 깨뜨린 적이 있다(Data.gov). URL 안에 case숫자가 있으면 오염으로 본다.
 CASE_IN_URL = re.compile(r"https?://\S*case\d+|['\"]/[A-Za-z0-9_./-]*case\d+[A-Za-z0-9_./?-]*['\"]")
 
@@ -42,8 +43,11 @@ def check(root: Path = ROOT) -> list[str]:
     for rel, path in iter_text_files(root):
         raw = path.read_bytes()
         name = rel.as_posix()
-        if path.suffix.lower() in CODE_SUFFIXES and b"\r\n" in raw:
-            findings.append(f"{name}: 줄바꿈 CRLF 포함(이 저장소는 LF, .gitattributes가 바이트를 그대로 저장)")
+        # [수정: 0 이영 · Claude] 2026-10-01 00:52 KST — 통합 뒤 main에는 CRLF 파일과 LF 파일이 함께 있고(Windows 도구·autocrlf), 작업 트리의 줄바꿈은 각자의
+        # git 설정에 따라 달라진다. 파일 전체를 바꾸면 모두의 다음 병합이 충돌하므로 통일을 강제하지 않는다. 한 파일 안에서 두 방식이
+        # 섞인 경우만(편집기·스크립트가 일부만 바꾼 사고) 잡는다.
+        if path.suffix.lower() in CODE_SUFFIXES and b"\r\n" in raw and raw.count(b"\n") != raw.count(b"\r\n"):
+            findings.append(f"{name}: 한 파일에 CRLF와 LF가 섞여 있음")
         try:
             text = raw.decode("utf-8-sig")
         except UnicodeDecodeError:

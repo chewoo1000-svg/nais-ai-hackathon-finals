@@ -21,7 +21,7 @@ for module_root in (AGENT_ROOT.parent, AGENT_ROOT):
 from finals_explain import calculation_summary, reasons
 from finals_provider import ProviderError, availability, complete_json
 
-# [수정: 0 이영 · Claude] 2026-09-30 23:56 KST — 실행 기록(finals.pipeline)과 모듈 불러오기 오류를 서버 로그(Cloud 콘솔)로 내보낸다. 스크립트가 다시 실행돼도 핸들러는 한 번만 붙인다.
+# [수정: 0 이영 · Claude] 2026-10-01 00:50 KST — 실행 기록(finals.pipeline)과 모듈 불러오기 오류를 서버 로그(Cloud 콘솔)로 내보낸다. 스크립트가 다시 실행돼도 핸들러는 한 번만 붙인다.
 _log = logging.getLogger("finals")
 if not _log.handlers:
     _handler = logging.StreamHandler()
@@ -36,32 +36,13 @@ def _int_env(name, default):
     except ValueError:
         return default
 
-st.set_page_config(page_title="근거관문 · 버전 0", page_icon="◈", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="근거관문 · 근거 검산", page_icon=":material/fact_check:", layout="wide", initial_sidebar_state="collapsed")
 
-# 수정 이유: 시각 대비·16px 본문·키보드 포커스·좁은 화면의 재배치로 검토 동선을 읽기 쉽게 한다.
-st.markdown("""
-<style>
-:root{--ink:#152033;--navy:#172e50;--muted:#536277;--line:#d9e1eb;--paper:#fff;--bg:#f5f7fa}
-.stApp{font-family:'Malgun Gothic','Segoe UI',sans-serif;color:var(--ink);background:var(--bg)}
-.stMainBlockContainer{max-width:1440px;padding-top:2.4rem;padding-bottom:4rem}
-p,label,[data-testid='stMarkdownContainer']{font-size:16px;line-height:1.65}
-h1{font-size:48px!important;letter-spacing:-.045em;color:var(--navy);line-height:1.12!important}
-h2{font-size:25px!important;letter-spacing:-.03em}h3{font-size:19px!important}
-[data-testid='stSidebar']{border-right:1px solid var(--line)}
-[data-testid='stVerticalBlockBorderWrapper']>div{background:var(--paper);border-color:var(--line)!important;border-radius:12px!important}
-.stButton button,.stDownloadButton button{min-height:46px;font-weight:600;border-radius:8px;transition:background .16s ease}
-button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #3469a8!important;outline-offset:3px!important}
-[data-testid='stCaptionContainer']{color:var(--muted);font-size:14px!important}
-.final-kicker{font-size:12px;letter-spacing:.16em;font-weight:700;color:var(--muted);margin-bottom:12px}
-.final-summary{color:var(--muted);max-width:760px;font-size:17px;line-height:1.7;margin-bottom:24px}
-.final-rule{height:3px;background:var(--navy);margin:18px 0 28px;width:72px}
-.final-step{font-size:12px;letter-spacing:.1em;color:var(--muted);font-weight:700;margin:4px 0 8px}
-.final-note{border-left:3px solid var(--navy);padding:12px 16px;background:#edf2f8;line-height:1.7;overflow-wrap:anywhere}
-kbd{background:#e8edf4;border:1px solid #bdcadb;border-radius:4px;padding:2px 6px;font-size:12px}
-@media(max-width:760px){h1{font-size:36px!important}.stMainBlockContainer{padding-top:1.5rem;padding-left:1rem;padding-right:1rem}}
-@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-</style>
-""", unsafe_allow_html=True)
+# [수정: 0 이영] 2026-09-30 23:50 KST — 사용자 HTML 참고 공통 테마로 검산 화면을 맞추며 계산·확인 정책은 유지한다.
+from importlib import import_module
+web_theme = import_module("core.0_이영_웹테마")
+web_theme.render_theme()
+web_theme.render_brand()
 
 CATEGORIES = {"normal":"정상", "mismatch":"수치 불일치", "evidence_missing":"근거 부족", "data_changed":"자료 변경"}
 STATE_NAMES = {"ARITHMETIC_MATCH":"수치 일치", "MATCH":"수치 일치", "ARITHMETIC_MISMATCH":"수치 불일치", "MISMATCH":"수치 불일치", "BLOCK":"보류", "BLOCKED":"보류", "INPUT_CHANGED":"변경 후 재사용 차단", "APPROVED":"사람 확인 완료", "PROPOSED":"후보 접수", "NOT_RUN":"미실행", "SUPPORTED_PREVIEW":"조건 검산 완료", "CONFLICT_PREVIEW":"수치 불일치", "MISSING":"근거 부족", "BLOCKED_CHANGED_INPUT":"변경 후 재사용 차단", "MODEL_BLOCKED":"AI 요청 중단", "IMPORTED_REVIEW":"불러온 기록(읽기 전용)", "GENERAL_AI_MATCH":"일반 AI 단독 응답: 일치(검산 아님)", "GENERAL_AI_MISMATCH":"일반 AI 단독 응답: 불일치(검산 아님)", "GENERAL_AI_BLOCK":"일반 AI 단독 응답: 보류(검산 아님)", "GENERAL_AI_STALE_BLOCK":"일반 AI 단독 응답: 변경 차단(검산 아님)"}
@@ -125,23 +106,24 @@ def health_record():
         return {}
 
 
-st.markdown('<div class="final-kicker">RESEARCH VERIFICATION / FINALS 2026</div>', unsafe_allow_html=True)
-st.title("근거관문")
-st.caption("본선 연구 검산 · 버전 0")
+st.markdown('<div class="final-kicker">EVIDENCE GATE · 근거 검산</div>', unsafe_allow_html=True)
+st.title("발견한 근거, 다시 계산해 볼까요?")
+st.caption("원문 · 분석 조건 · 자료 지문 · 사람 확인")
 st.markdown('<div class="final-summary">원문에서 조건을 확인하고, 데이터로 다시 계산합니다.<br>근거와 결과를 검토한 뒤 사람이 직접 승인합니다.</div><div class="final-rule"></div>', unsafe_allow_html=True)
 
 try:
     import finals_cases as cases
     import finals_pipeline as pipeline
 except ImportError as error:
-    # [수정: 0 이영 · Claude] 2026-09-30 23:56 KST — 실제 원인(예: 배포 환경에 빠진 패키지)을 서버 로그에 남긴다. 화면에는 안내만 보인다.
+    # [수정: 0 이영 · Claude] 2026-10-01 00:50 KST — 실제 원인(예: 배포 환경에 빠진 패키지)을 서버 로그에 남긴다. 화면에는 안내만 보인다.
     logging.getLogger("finals.app").error("본선 분석 모듈 불러오기 실패: %s", error)
     st.error("본선 분석 모듈을 준비 중입니다. 연결이 완료되면 사례 검토를 시작할 수 있습니다.")
     st.stop()
 
 catalog = cases.list_cases()
-with st.sidebar:
-    st.caption("본선 작업 · 버전 0 · 이영")
+# [수정: 0 이영] 2026-09-30 23:54 KST — 사례와 작성 방법을 읽기 흐름에 보여 모바일에서도 바로 검토를 시작할 수 있게 한다.
+with st.container(border=True):
+    st.caption("본선 작업 · 담당 0 · 이영")
     st.subheader("검토할 사례")
     category = st.selectbox("사례 유형", ["전체",*CATEGORIES.values()], key="fin_category")
     selected = [item for item in catalog if category == "전체" or CATEGORIES.get(item.get("category")) == category]
@@ -159,7 +141,7 @@ with st.sidebar:
         st.caption("인증 설정 있음 · " + str(status.get("model", "모델 확인 필요")))
         previous = health_record()
         if previous.get("status") == "GENERATION_BLOCKED":
-            # [수정: 0 이영 · Claude] 2026-09-30 23:56 KST — 점검 기록 파일은 과거 사실이다. 시각을 함께 보여 현재 상태로 오해하지 않게 한다.
+            # [수정: 0 이영 · Claude] 2026-10-01 00:50 KST — 점검 기록 파일은 과거 사실이다. 시각을 함께 보여 현재 상태로 오해하지 않게 한다.
             st.warning("가장 최근 생성 요청은 사용 한도 문제로 중단됐습니다." + (f" (점검 기록 {previous['checked_at_kst']})" if previous.get("checked_at_kst") else ""))
             st.caption("실제 응답이 생성되기 전에는 AI 분석을 완료로 표시하지 않습니다.")
     else:
@@ -177,7 +159,9 @@ summary[2].caption("사람 확인")
 summary[2].write("직접 승인 완료" if approved(report) else "미승인")
 st.divider()
 
-left, right = st.columns([1.08,1], gap="large")
+# [수정: 0 이영] 세로 카드 흐름으로 참고 화면의 좁은 읽기 폭을 유지한다.
+left = st.container()
+right = st.container()
 with left:
     with st.container(border=True):
         st.markdown('<div class="final-step">01 / SOURCE</div>', unsafe_allow_html=True)
@@ -226,7 +210,7 @@ with right:
                 st.rerun()
         elif mode == "live":
             st.caption("선택한 공개 원문과 허용된 자료 정보로 실제 후보 생성을 요청합니다. 한 번 누르면 모델을 최대 2회 호출합니다.")
-            # [수정: 0 이영 · Claude] 2026-09-30 23:56 KST — 공개 배포에서 방문자가 유료 호출을 반복하지 못하게: 운영자가 켠 경우에만, 화면(세션)당 횟수 상한 안에서만 실행한다.
+            # [수정: 0 이영 · Claude] 2026-10-01 00:50 KST — 공개 배포에서 방문자가 유료 호출을 반복하지 못하게: 운영자가 켠 경우에만, 화면(세션)당 횟수 상한 안에서만 실행한다.
             live_runs = int(st.session_state.get("fin_live_runs", 0))
             live_max = _int_env("NAIS_LIVE_MAX_RUNS", 3)
             live_ready = bool(status.get("available", False)) and bool(status.get("live_allowed", False)) and live_runs < live_max
@@ -282,7 +266,7 @@ with right:
                 st.warning(STATE_NAMES.get(state,state))
             else:
                 st.info(STATE_NAMES.get(state,state))
-            # [수정: 0 이영 · Claude] 2026-10-01 00:37 KST — 판정 이유가 JSON 안의 영문 코드로만 보였다. 한 문장 요약과 이유 목록을 먼저 보여 주고 JSON은 그대로 둔다.
+            # [수정: 0 이영 · Claude] 2026-10-01 00:50 KST — 판정 이유가 JSON 안의 영문 코드로만 보였다. 한 문장 요약과 이유 목록을 먼저 보여 주고 JSON은 그대로 둔다.
             summary_line = calculation_summary(report.get("calculation"))
             if summary_line:
                 st.write(summary_line)

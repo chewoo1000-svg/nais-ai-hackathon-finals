@@ -10,7 +10,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_root_streamlit_config_applies_upload_cap_and_theme():
     config = tomllib.loads((ROOT / ".streamlit/config.toml").read_text(encoding="utf-8"))
-    assert config["server"]["maxUploadSize"] <= 1
+    # [수정: 0 이영 · Claude] 2026-10-01 01:01 KST — 통합 뒤 웹 전체가 팀 작업실의 파일 업로드(최대 5MiB)를 함께 쓰므로 상한은 10MB다(검산 화면은 256KB만 받는다).
+    assert config["server"]["maxUploadSize"] <= 10
     assert config["browser"]["gatherUsageStats"] is False
     assert config["theme"]["base"] == "light"
 

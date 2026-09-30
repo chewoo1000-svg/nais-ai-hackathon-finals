@@ -66,8 +66,9 @@ def _open_topic(actor, query):
 def render_digest(actor, kind='papers'):
     if kind not in {'papers', 'news'}:
         raise ValueError('Unsupported digest kind')
-    st.subheader('자동으로 모은 연구')
-    st.caption('매일 한국시간 09시·18시 갱신 예정입니다. 예약 서버 혼잡이나 원본 서비스 오류로 지연될 수 있습니다.')
+    st.subheader('보관된 연구')
+    # [수정: 0 이영] 2026-10-01 00:07 KST — 예약 수집 미설정 상태를 보관 조회와 구분한다.
+    st.caption('저장된 조회 결과입니다. 정기 수집은 아직 연결되지 않았습니다. 직접 검색으로 현재 결과를 확인할 수 있습니다.')
     try:
         digest, source_label, error_code = load_digest()
     except (ValueError, OSError, KeyError, TypeError, ImportError):

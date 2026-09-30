@@ -19,6 +19,7 @@ COLLECTIONS = ('sentinel-2-l2a', 'sentinel-2-c1-l2a', 'landsat-c2-l2')
 INDICATORS = ('SP.POP.TOTL', 'NY.GDP.MKTP.CD', 'SP.DYN.LE00.IN')
 INDICATOR_UNITS = {'SP.POP.TOTL': 'persons', 'NY.GDP.MKTP.CD': 'current US$', 'SP.DYN.LE00.IN': 'years'}
 REGIONS = {'global': None, 'korea': (124, 33, 132, 39)}
+# [수정: 0 이영 · Codex] 2026-10-01 00:05 KST — 외부 Data.gov API 주소·허용 prefix·표시명을 함께 복구한다.
 SOURCES = {
     'kci': ('KCI 국내 학술논문', 'datasets', 'open.kci.go.kr', '/po/openapi/openApiSearch.kci', 'https://www.kci.go.kr/kciportal/po/openapi/openApiConnSamp.kci'),
     'aida': ('KISTI AIDA 연구 데이터', 'datasets', 'aida.kisti.re.kr', '/openapi/data', 'https://aida.kisti.re.kr/about/openapi'),
@@ -27,7 +28,6 @@ SOURCES = {
     'world_bank': ('World Bank', 'statistics', 'api.worldbank.org', '/v2', 'https://datahelpdesk.worldbank.org/knowledgebase/articles/889392'),
     'usgs': ('USGS 지진 관측', 'satellite', 'earthquake.usgs.gov', '/fdsnws/event/1/query', 'https://earthquake.usgs.gov/fdsnws/event/1/1'),
     'datacite': ('DataCite 연구 데이터 DOI', 'datasets', 'api.datacite.org', '/dois', 'https://support.datacite.org/docs/api'),
-    # [수정: 0 이영] 2026-09-30T23:42:26+09:00 — Data.gov 공식 API의 경로 버전 세그먼트를 보존한다. 외부 서비스가 정한 값이며 담당 번호와 별개다.
     'data_gov': ('미국 Data.gov v4', 'public', 'api.gsa.gov', '/technology/datagov/v4/search', 'https://resources.data.gov/catalog-api/'),
     'korea_data': ('한국 공공데이터포털 검색 서비스', 'public', 'api.odcloud.kr', '/api/GetSearchDataList/v1/searchData', 'https://www.data.go.kr/data/15112888/openapi.do'),
 }
@@ -80,7 +80,6 @@ def source_catalog():
 
 
 def _request(source, path, key=None, body=None):
-    # [수정: 0 이영] 2026-09-30T23:42:26+09:00 — Data.gov 공식 API의 경로 버전 세그먼트를 보존한다. 외부 서비스가 정한 값이며 담당 번호와 별개다. 카탈로그와 요청 허용목록을 함께 복원한다.
     prefixes = {'nasa_cmr': ('/search/collections.json?',), 'earth_search': ('/v1/collections', '/v1/search?'),
                 'world_bank': ('/v2/indicator?', '/v2/country/KOR/indicator/'),
                 'usgs': ('/fdsnws/event/1/query?',), 'datacite': ('/dois?',),

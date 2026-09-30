@@ -29,13 +29,16 @@ class RepoHygieneTest(unittest.TestCase):
     def test_clean_tree_passes(self):
         self.assertEqual(scan({"a.py": "print(1)\n", "docs/n.md": "안녕\n", "d.json": json.dumps({"a": 1})}), [])
 
-    def test_crlf_is_flagged_only_in_code_and_config(self):
-        findings = scan({"a.py": b"x = 1\r\n", "docs/n.md": b"doc\r\n", "r.json": b"{}\r\n"})
-        self.assertEqual([f.split(":")[0] for f in findings], ["a.py"])
+    def test_only_mixed_line_endings_in_one_code_file_are_flagged(self):
+        # 파일 전체가 CRLF인 것은 Windows 도구가 만든 정상 상태로 보고 통일을 강제하지 않는다(모두의 다음 병합이 충돌한다).
+        findings = scan({"mixed.py": b"x = 1\r\ny = 2\n", "allcrlf.py": b"x = 1\r\ny = 2\r\n", "alllf.py": b"x = 1\n",
+                         "docs/n.md": b"doc\r\nmore\n", "r.json": b"{}\r\n"})
+        self.assertEqual([f.split(":")[0] for f in findings], ["mixed.py"])
 
-    def test_secret_shaped_strings_are_flagged(self):
+    def test_secret_shaped_strings_are_flagged_except_obvious_test_fixtures(self):
         findings = scan({"a.py": 'KEY = "' + "sk-" + "a" * 30 + '"\n'})
         self.assertTrue(any("비밀값" in f for f in findings))
+        self.assertEqual(scan({"t.py": 'FAKE = "' + "sk-" + "testFixtureValue" + "1" * 12 + '"\n'}), [])
 
     def test_local_absolute_paths_are_flagged_unless_marked(self):
         path = "C:" + BACKSLASH + "Users" + BACKSLASH + "someone" + BACKSLASH + "file.txt"
@@ -50,6 +53,7 @@ class RepoHygieneTest(unittest.TestCase):
     def test_emails_are_flagged_except_placeholders(self):
         self.assertTrue(any("이메일" in f for f in scan({"a.md": "문의: person" + "@" + "univ.ac.kr\n"})))
         self.assertEqual(scan({"a.md": "name" + "@" + "example.com\n"}), [])
+        self.assertEqual(scan({"a.py": "fake = 'private-contact" + "@" + "example.test'\n"}), [])   # 예약 도메인(RFC 2606)
 
     def test_broken_and_duplicate_key_json_is_flagged(self):
         findings = scan({"a.json": '{"a": 1, "a": 2}', "b.json": "{not json"})

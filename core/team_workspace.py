@@ -366,7 +366,8 @@ def require_member():
         st.error('팀원 4명의 접근 설정이 필요합니다. README의 팀 배포 설정을 완료해 주세요.')
         st.stop()
     if st.session_state.get('authenticated_member') not in MEMBERS:
-        st.title('근거관문 · 팀 최선이가')
+        # [수정: 0 이영] 2026-09-30 22:52 KST — 팀 접속 화면의 제목 오기를 로그인으로 바로잡습니다. 인증·권한 로직은 유지합니다.
+        st.title('근거관문 · 팀 로그인')
         with st.form('team_login'):
             who=st.selectbox('팀원',MEMBERS)
             password=st.text_input('개인 접속 비밀번호',type='password')

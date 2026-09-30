@@ -16,7 +16,8 @@ MANIFEST = 'data/combined_papers_index.json'
 TEAM_METADATA = 'data/team_intake/jihyun_20260929/metadata.json'
 TEAM_METADATA_SHA256 = '6174bd3c1959a8363d19210909cd61d58bf9f13fe6800b653a5f8104365535b1'
 # [수정: 0 이영] 공개 파생 manifest 지문을 결속해 팀 취합 메타데이터 결손의 차단 조건을 유지한다. 변경 근거: docs/intake/0_이영_공개자료.json.
-TEAM_BASE_SHA256 = 'a2c8d57a6114056b83391ba0642891d545516374172a13d81204e909f4969683'
+# [수정: 0 이영 · Codex] 2026-10-01 00:05 KST — 원본/공개사본 지문을 분리하고 운영 manifest의 실제 바이트에 연결한다.
+TEAM_BASE_SHA256 = 'd4d394b77eae65c0bed1af4852f1b945262fffa93b0ed2dd5370f725c465eb16'
 ARCHIVED = 'ARCHIVED_CC_BY_OR_CC0'
 STATUSES = {ARCHIVED, 'LINK_ONLY_REUSE_RESTRICTED', 'CITATION_METADATA_ONLY'}
 MAX_PASSAGE_CHARS = 2000
