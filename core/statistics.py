@@ -15,6 +15,15 @@ DESCRIPTIVE_METHODS=("mean","weighted_mean","sum","median","min","max","count","
 INFERENTIAL_METHODS=("one_sample_t","independent_t","welch_t","paired_t","mannwhitney_u","wilcoxon_signed","pearson_r","spearman_r","chi_square","fisher_exact","linear_regression","logistic_regression")
 
 
+# [수정: 0 이영 · Codex] 2026-09-30T22:51:29+09:00 — C05: 순위검정도 무한대를 순위로 바꾸기 전에 입력 경계에서 거부한다.
+def _require_finite_numeric_input(df, columns):
+    for col in dict.fromkeys(columns):
+        if col and col in df.columns:
+            values=pd.to_numeric(df[col],errors="coerce").dropna()
+            if not np.isfinite(values).all():
+                raise ValueError(f"수치형 입력 {col}에 무한대가 포함되어 있습니다.")
+
+
 def numeric(df,col):
     if not col or col not in df.columns:return pd.Series(dtype=float)
     return pd.to_numeric(df[col],errors="coerce").dropna()
@@ -98,7 +107,14 @@ def inferential(df,method,outcome,group_col="",group_a="",group_b="",x_col="",mu
             raise ValueError("범주 비교에는 서로 다른 두 집단과 유효한 그룹 열이 필요합니다.")
         mask_a=filter_mask(df[group_col], group_a)
         mask_b=filter_mask(df[group_col], group_b)
-        df=df[mask_a | mask_b]
+        # [수정: 0 이영 · Codex] 2026-09-30T22:51:29+09:00 — C04: 선택 마스크와 같은 두 집단 표기로 분할표를 만들고 원자료는 보존한다.
+        selected=mask_a | mask_b
+        df=df[selected].copy()
+        df[group_col]=np.where(mask_a[selected].to_numpy(),group_a,group_b)
+    # [수정: 0 이영 · Codex] 2026-09-30T22:51:29+09:00 — C05: 두 집단 검정은 선택 표본, 나머지 수치 검정은 연결 열의 유한성을 확인한다.
+    if method not in ("chi_square", "fisher_exact"):
+        numeric_frame=df[mask_a | mask_b] if method in ("independent_t", "welch_t", "mannwhitney_u") else df
+        _require_finite_numeric_input(numeric_frame,[outcome,x_col])
     assumptions=[]; result={"method":method}
     # [수정: 통계 안전성/재현성] 2026-09-28 case72
     # scipy가 NaN을 반환하거나 빈/퇴화 표본을 경고만 하고 계속하는 경우가 있다.
@@ -170,6 +186,8 @@ def inferential(df,method,outcome,group_col="",group_a="",group_b="",x_col="",mu
 # case20 CHANGE: add a deterministic logistic-regression verifier. We use statsmodels here
 # because it exposes coefficient/SE/CI/convergence diagnostics needed for auditability.
 def logistic_regression(df,outcome,x_col):
+    # [수정: 0 이영 · Codex] 2026-09-30T22:51:29+09:00 — C05: 직접 호출도 fit 전에 비유한 입력을 명시적으로 차단한다.
+    _require_finite_numeric_input(df,[outcome,x_col])
     import statsmodels.api as sm
     z=pd.DataFrame({'x':pd.to_numeric(df[x_col],errors='coerce'),'y':pd.to_numeric(df[outcome],errors='coerce')}).dropna()
     vals=sorted(z.y.unique().tolist())
@@ -207,6 +225,8 @@ def adjust_pvalues(p_values,method='holm'):
 # case24 CHANGE — WHY: case22 stored predictors as a list but executed only predictors[0].
 # This deterministic statsmodels path makes the contract and execution semantics agree.
 def multivariable_regression(df,outcome,predictors,method='linear_regression'):
+    # [수정: 0 이영 · Codex] 2026-09-30T22:51:29+09:00 — C05: 모든 연결 설명변수와 결과변수를 직접 호출 경계에서도 검사한다.
+    _require_finite_numeric_input(df,[outcome,*predictors])
     import statsmodels.api as sm
     cols=[outcome,*predictors]
     z=df[cols].apply(pd.to_numeric,errors='coerce').dropna()

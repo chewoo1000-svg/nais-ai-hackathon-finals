@@ -315,8 +315,7 @@ def validate_proposal_json(text, original_claim, dataframe, dataset_hash):
     unsupported.extend(spec_unsupported)
     if (spec.variance_estimator=='welch' and method!='welch_t') or (spec.variance_estimator=='classical' and method=='welch_t'):
         unsupported.append('variance estimator/method mismatch')
-    if method=='one_sample_t' and spec.multiplicity_policy not in ('unspecified','none','none_reported','unadjusted'):
-        unsupported.append('one_sample_t multiplicity policy is not applied by executor')
+    # [수정: 0 이영] 2026-09-30 22:57 KST — C03: 확인된 1표본 t 보정을 지원하는 실행기와 접수를 맞춘다. 제안은 여전히 미확인 후보이며 자동 실행하지 않는다.
     check = check_evidence_sufficiency(contract, dataframe)
     missing.extend(item for item in check.missing if item not in CONFIRMATION_FIELDS)
     # The existing sufficiency checker intentionally stops after unconfirmed policy;

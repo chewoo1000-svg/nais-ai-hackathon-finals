@@ -27,7 +27,8 @@ SOURCES = {
     'world_bank': ('World Bank', 'statistics', 'api.worldbank.org', '/v2', 'https://datahelpdesk.worldbank.org/knowledgebase/articles/889392'),
     'usgs': ('USGS 지진 관측', 'satellite', 'earthquake.usgs.gov', '/fdsnws/event/1/query', 'https://earthquake.usgs.gov/fdsnws/event/1/1'),
     'datacite': ('DataCite 연구 데이터 DOI', 'datasets', 'api.datacite.org', '/dois', 'https://support.datacite.org/docs/api'),
-    'data_gov': ('미국 Data.gov case4', 'public', 'api.gsa.gov', '/technology/datagov/case4/search', 'https://resources.data.gov/catalog-api/'),
+    # [수정: 0 이영] 2026-09-30T23:42:26+09:00 — Data.gov 공식 API v4 경로를 보존한다. 외부 API 버전은 담당 번호와 별개다.
+    'data_gov': ('미국 Data.gov v4', 'public', 'api.gsa.gov', '/technology/datagov/v4/search', 'https://resources.data.gov/catalog-api/'),
     'korea_data': ('한국 공공데이터포털 검색 서비스', 'public', 'api.odcloud.kr', '/api/GetSearchDataList/v1/searchData', 'https://www.data.go.kr/data/15112888/openapi.do'),
 }
 FILTERS = {s: {'catalog': ['query', 'limit']} for s in SOURCES}
@@ -79,10 +80,11 @@ def source_catalog():
 
 
 def _request(source, path, key=None, body=None):
+    # [수정: 0 이영] 2026-09-30T23:42:26+09:00 — Data.gov 공식 API v4 경로를 보존한다. 외부 API 버전은 담당 번호와 별개다. 카탈로그와 요청 허용목록을 함께 복원한다.
     prefixes = {'nasa_cmr': ('/search/collections.json?',), 'earth_search': ('/v1/collections', '/v1/search?'),
                 'world_bank': ('/v2/indicator?', '/v2/country/KOR/indicator/'),
                 'usgs': ('/fdsnws/event/1/query?',), 'datacite': ('/dois?',),
-                'data_gov': ('/technology/datagov/case4/search?',), 'korea_data': ('/api/GetSearchDataList/v1/searchData',),
+                'data_gov': ('/technology/datagov/v4/search?',), 'korea_data': ('/api/GetSearchDataList/v1/searchData',),
                 'kci': ('/po/openapi/openApiSearch.kci?',), 'aida': ('/openapi/data?',)}
     if source not in prefixes or not isinstance(path, str) or not path.startswith(prefixes[source]) or len(path) > 4000 or any(ord(c) < 32 or ord(c) == 127 for c in path):
         raise ValueError('RESEARCH_DATA_INVALID_REQUEST')

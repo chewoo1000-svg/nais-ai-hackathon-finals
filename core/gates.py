@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, asdict
 import math
 import re
+from decimal import Decimal, InvalidOperation
 import numpy as np
 import pandas as pd
 from scipy import stats
@@ -80,6 +81,33 @@ def interpretation_gate(claim,inferential_result):
     return GateResult('INTERPRETATION','REVIEW','과학적 해석 확인',f'p={p:.4g}, α={alpha:g}. p-value만으로 중요성·인과성·전체 결론을 자동 확정하지 않습니다.',{'p_value':p,'alpha':alpha,'estimate':inferential_result.get('estimate'),'ci95':inferential_result.get('ci95')})
 
 
+# [수정: 0 이영 · Codex] 2026-09-30T22:51:29+09:00 — C06/C07: 검산 허용오차는 원문 숫자의 마지막 자릿수에만 연결한다.
+_REPORTED_NUMBER=r'[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?'
+_REPORTED_END=r'(?![\w%]|\.\d)'
+_REPORTED_P=re.compile(r'\bp\s*(<=|>=|[=<>≤≥])\s*('+_REPORTED_NUMBER+r')'+_REPORTED_END,re.I)
+_REPORTED_CI=re.compile(r'(?:(?P<level>\d+(?:\.\d+)?)\s*%\s*)?(?:\bCI\b|confidence interval|신뢰구간)\s*(?:[:=]|from)?\s*[\[(]?\s*(?P<low>'+_REPORTED_NUMBER+r')\s*(?:[,~–-]|to)\s*(?P<high>'+_REPORTED_NUMBER+r')'+_REPORTED_END,re.I)
+
+
+def _printed_tolerance(token, value):
+    try:
+        printed=Decimal(token)
+        if float(printed)!=float(value):return None
+        # p=0 또는 p=1처럼 소수/지수가 없는 경계 표기는 넓은 반올림 구간으로 확장하지 않는다.
+        if '.' not in token and 'e' not in token.lower():return None
+        tolerance=float(Decimal('0.5').scaleb(printed.as_tuple().exponent))
+        return tolerance if math.isfinite(tolerance) else None
+    except (InvalidOperation,ValueError,OverflowError):return None
+
+
+def _valid_interval(values):
+    try:
+        if isinstance(values,(str,bytes)) or len(values)!=2:return None
+        if any(isinstance(v,(bool,np.bool_)) or not math.isfinite(float(v)) for v in values):return None
+        lo,hi=map(float,values)
+        return (lo,hi) if lo<=hi else None
+    except (TypeError,ValueError,OverflowError):return None
+
+
 # [수정: 전문가5/6] 2026-09-26 case64
 # 원인: > 등 연산자 누락이 PASS / 무엇·왜: 5개 비교 및 확률 범위·미지원 연산자 검사.
 # 입력·출력: 보고 p/연산자/재계산 p -> PASS·FAIL·REVIEW / 검증: test_p_operators, test_invalid_probabilities_rejected.
@@ -94,6 +122,31 @@ def inferential_reproduction_gate(claim,result):
     diffs=[];metrics={'reanalysis':result}
     rp=getattr(claim,'reported_p_value',None);op=getattr(claim,'reported_p_operator','')
     reff=getattr(claim,'reported_effect',None);kind=getattr(claim,'effect_kind','')
+    # [수정: 0 이영 · Codex] 2026-09-30T22:51:29+09:00 — C06/C08: 보고된 CI를 무시하지 않고 미지원 신뢰수준은 사람 검토로 남긴다.
+    rci=getattr(claim,'reported_ci95',None)
+    source=getattr(claim,'source_quote','') or getattr(claim,'text','') or ''
+    source_ci=_REPORTED_CI.search(source)
+    source_level=float(source_ci.group('level')) if source_ci and source_ci.group('level') else None
+    if source_ci and (source_level!=95 or rci is None):
+        metrics.update(reported_confidence_level=source_level)
+        return GateResult('REPRODUCTION','REVIEW','신뢰구간 확인 필요','원문의 구간은 명시된 95% CI와 연결된 두 경계값을 확인한 후 비교해야 합니다.',metrics)
+    if rci is not None:
+        computed_ci=result.get('ci95_or') if kind=='odds_ratio' else result.get('ci95')
+        if computed_ci is None and kind!='odds_ratio':computed_ci=result.get('ci95_beta')
+        reported_bounds=_valid_interval(rci);computed_bounds=_valid_interval(computed_ci)
+        if reported_bounds is None or computed_bounds is None:
+            return GateResult('REPRODUCTION','REVIEW','신뢰구간 계산 확인 필요','보고·재계산 CI에는 유한하고 순서가 맞는 두 경계값이 필요합니다.',metrics)
+        tolerances=[None,None]
+        if source_ci:
+            tolerances=[_printed_tolerance(source_ci.group(key),v) for key,v in zip(('low','high'),reported_bounds)]
+        metrics.update(reported_ci95=reported_bounds,recomputed_ci95=computed_bounds,ci_tolerances=tolerances)
+        for index,(reported,actual,tolerance) in enumerate(zip(reported_bounds,computed_bounds,tolerances)):
+            matches=math.isclose(actual,reported,rel_tol=1e-12,abs_tol=1e-12)
+            # [수정: 0 이영 · Codex] 2026-09-30T22:59:03+09:00 — 반올림 구간 경계의 이진 부동소수점 차이만 허용한다.
+            if tolerance is not None:
+                difference=abs(actual-reported)
+                matches=matches or difference<=tolerance or math.isclose(difference,tolerance,rel_tol=1e-12,abs_tol=0.0)
+            if not matches:diffs.append(f'95% CI {index+1}번째 경계 보고 {reported:g} vs 재분석 {actual:.6g}')
     # [수정: 전문가6] 2026-09-25 case47
     # 종류: 오류수정 / 재현 방법: 상수열 Pearson의 NaN p·효과에서 차이 비교가 False가 되어 PASS / 변경 전: 비유한 값도 수치 비교 통과 / 변경 후: 비교 대상이 없거나 비유한 값이면 REVIEW / 왜: 계산 불능을 재현 성공으로 승격 금지 / 영향: 기존 정상 유한 수치 판정 불변.
     try:
@@ -110,7 +163,17 @@ def inferential_reproduction_gate(claim,result):
             return GateResult('REPRODUCTION','REVIEW','p 비교 연산자 확인 필요','지원하는 명시적 연산자는 =, <, >, <=, >= 입니다.',metrics)
         rp=float(rp)
         actual=float(result['p_value']);metrics.update(reported_p=rp,recomputed_p=actual,p_operator=op)
-        if op=='=' and abs(actual-rp)>max(.001,abs(rp)*.05):diffs.append(f'p-value 보고 {rp:g} vs 재분석 {actual:.4g}')
+        # [수정: 0 이영 · Codex] 2026-09-30T22:51:29+09:00 — C07: 작은 p에도 0.001을 허용하던 오차 대신 명시된 출력 정밀도만 허용한다.
+        if op=='=':
+            printed_p=next((m for m in _REPORTED_P.finditer(source) if m.group(1)=='=' and float(m.group(2))==rp),None)
+            tolerance=_printed_tolerance(printed_p.group(2),rp) if printed_p else None
+            metrics.update(p_tolerance=tolerance,p_tolerance_basis='source_rounding' if tolerance is not None else 'numeric_equality')
+            matches=math.isclose(actual,rp,rel_tol=1e-12,abs_tol=0.0)
+            # [수정: 0 이영 · Codex] 2026-09-30T22:59:03+09:00 — 반올림 구간 경계의 이진 부동소수점 차이만 허용한다.
+            if tolerance is not None:
+                difference=abs(actual-rp)
+                matches=matches or difference<=tolerance or math.isclose(difference,tolerance,rel_tol=1e-12,abs_tol=0.0)
+            if not matches:diffs.append(f'p-value 보고 {rp:g} vs 재분석 {actual:.4g}')
         if op=='<' and not actual<rp:diffs.append(f'p-value 보고 p<{rp:g}이나 재분석 {actual:.4g}')
         if op=='>' and not actual>rp:diffs.append(f'p-value 보고 p>{rp:g}이나 재분석 {actual:.4g}')
         if op=='<=' and not actual<=rp:diffs.append(f'p-value 보고 p<={rp:g}이나 재분석 {actual:.4g}')
@@ -121,7 +184,7 @@ def inferential_reproduction_gate(claim,result):
         tol=.05 if kind=='odds_ratio' else .02
         if actual is None or abs(float(actual)-reff)>tol:diffs.append(f'{kind} 보고 {reff:g} vs 재분석 {actual}')
     if diffs:return GateResult('REPRODUCTION','FAIL','추론 통계량 재현 실패','; '.join(diffs),metrics)
-    if rp is None and reff is None:return GateResult('REPRODUCTION','REVIEW','추론 결과 기록','재분석 결과는 생성했지만 비교할 보고 p-value/효과크기가 명시되지 않았습니다.',metrics)
+    if rp is None and reff is None and rci is None:return GateResult('REPRODUCTION','REVIEW','추론 결과 기록','재분석 결과는 생성했지만 비교할 보고 p-value/효과크기/95% CI가 명시되지 않았습니다.',metrics)
     # [수정: 전문가6] 2026-09-25 case43
     # 종류: 오류수정 / 재현 방법: 표본 부족 경고가 있어도 p 일치만으로 PASS / 변경 전: 숫자 일치 즉시 PASS / 변경 후: 가정 경고 시 사람 검토 / 왜: 실행 성공과 방법 적합성 분리 / 영향: 수치 일치는 기록하되 결론 자동 확정 안 함.
     if result.get('assumption_alerts'):
