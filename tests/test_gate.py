@@ -1,3 +1,4 @@
+# [수정: 3 조지현] 2026-10-01T01:21:00+09:00 — 정상 재정렬 승인의 자료·기준 지문을 명시해 강화된 계약 확인.
 """P1 최소 실행 경로 시험. 펭귄 행 수는 공개 원자료, 나머지 보고값은 시험용 합성값이다."""
 
 import copy
@@ -133,7 +134,7 @@ class SyntheticMethodsTest(unittest.TestCase):
         half = evaluate(spec, data, reference_ids=["A", "B", "C"], approvals={"reorder": {"approver": "연구자"}})
         self.assertEqual(half["verdict"], "BLOCK")
         approved = evaluate(spec, data, reference_ids=["A", "B", "C"],
-                            approvals={"reorder": {"approver": "연구자", "basis": "종 이름 기준"}})
+                            approvals={"reorder": {"approver": "연구자", "basis": "종 이름 기준", "data_sha256": sha(data), "reference_sha256": sha(b"A\nB\nC")}})
         self.assertEqual((approved["verdict"], approved["reorder_indices"]), ("MATCH", [1, 0, 2]))
         membership = evaluate(spec, data, reference_ids=["A", "B", "D"])
         self.assertEqual(membership["reason_code"], "ROW_MEMBERSHIP_MISMATCH")

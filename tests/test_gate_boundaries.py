@@ -104,12 +104,22 @@ class ApprovalRecordTest(unittest.TestCase):
     def spec(self):
         return spec_for(self.DATA, "row_alignment", data_id_column="Species", reference_ids_source="tree labels")
 
-    def test_unbound_approval_is_recorded_as_unbound(self):
+    # [수정: 3 조지현] 2026-10-01T01:21:00+09:00 — 기존 미결속 허용 시험을 안전한 차단 계약으로 교체. 정상·변경 시험은 유지.
+    def test_unbound_approval_is_blocked(self):
         result = evaluate(self.spec(), self.DATA, reference_ids=["A", "B", "C"],
                           approvals={"reorder": {"approver": "연구자", "basis": "종 이름 기준"}})
-        record = result["approvals"][0]
-        self.assertEqual((result["verdict"], record["bound_data_sha256"], record["bound_reference_sha256"]), ("MATCH", None, None))
-        self.assertEqual(sorted(record["unbound_fields"]), ["data_sha256", "reference_sha256"])
+        self.assertEqual((result["verdict"], result["reason_code"]), ("BLOCK", "APPROVAL_UNBOUND"))
+        self.assertNotIn("approvals", result)
+
+    def test_partially_bound_approval_is_blocked(self):
+        ref = ["A", "B", "C"]
+        hashes = {"data_sha256": hashlib.sha256(self.DATA).hexdigest(),
+                  "reference_sha256": hashlib.sha256("\n".join(ref).encode()).hexdigest()}
+        for missing in hashes:
+            approval = dict(approver="연구자", basis="종 이름 기준", **hashes)
+            approval.pop(missing)
+            result = evaluate(self.spec(), self.DATA, reference_ids=ref, approvals={"reorder": approval})
+            self.assertEqual((result["verdict"], result["reason_code"]), ("BLOCK", "APPROVAL_UNBOUND"))
 
     def test_bound_approval_is_recorded_with_its_own_hashes_and_expires_when_reference_changes(self):
         data_sha = hashlib.sha256(self.DATA).hexdigest()

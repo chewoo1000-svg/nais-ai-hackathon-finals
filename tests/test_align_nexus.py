@@ -1,3 +1,4 @@
+# [수정: 3 조지현] 2026-10-01T01:21:00+09:00 — 정상 승인 시험에도 실제 두 입력 지문을 명시. 실패 기준·원자료는 유지.
 """P5 행 대응 진단·표기 변환 승인, NEXUS 입력기, P3 A2 시연 시험.
 
 A2 저자 파일 시험은 EVIDENCE_GATE_A2_DIR에 두 파일이 있을 때만 돈다(자료는 저장소에 없음).
@@ -73,14 +74,14 @@ class NormalizeApprovalTest(unittest.TestCase):
         self.assertIn("표기 차이 후보", result["next_action"])
 
     def test_approved_pair_applies(self):
-        approvals = {"normalize": dict(APPROVE, pairs=[{"from": "Homo sapiens", "to": "Homo_sapiens"}])}
+        approvals = {"normalize": dict(APPROVE, data_sha256=hashlib.sha256(self.data).hexdigest(), reference_sha256=hashlib.sha256("\n".join(self.reference).encode()).hexdigest(), pairs=[{"from": "Homo sapiens", "to": "Homo_sapiens"}])}
         result = evaluate(spec_for(self.data), self.data, reference_ids=self.reference, approvals=approvals)
         self.assertEqual((result["verdict"], result["reason_code"]), ("MATCH", "ROWS_ALIGNED"))
         self.assertEqual(result["approvals"][0]["pairs"][0]["rule"], "space_to_underscore")
         self.assertEqual(result["details"]["before_normalization"]["status"], "MEMBERSHIP_MISMATCH")
 
     def test_unoffered_pair_is_rejected(self):
-        approvals = {"normalize": dict(APPROVE, pairs=[{"from": "Homo sapiens", "to": "Pan_paniscus"}])}
+        approvals = {"normalize": dict(APPROVE, data_sha256=hashlib.sha256(self.data).hexdigest(), reference_sha256=hashlib.sha256("\n".join(self.reference).encode()).hexdigest(), pairs=[{"from": "Homo sapiens", "to": "Pan_paniscus"}])}
         result = evaluate(spec_for(self.data), self.data, reference_ids=self.reference, approvals=approvals)
         self.assertEqual((result["verdict"], result["reason_code"]), ("BLOCK", "APPROVAL_NOT_APPLICABLE"))
 
@@ -90,7 +91,7 @@ class NormalizeApprovalTest(unittest.TestCase):
         result = evaluate(spec_for(data), data, reference_ids=["A", "B"], approvals=approvals)
         self.assertEqual((result["verdict"], result["reason_code"]), ("BLOCK", "APPROVAL_STALE"))
         ok = evaluate(spec_for(data), data, reference_ids=["A", "B"],
-                      approvals={"reorder": dict(APPROVE, data_sha256=hashlib.sha256(data).hexdigest())})
+                      approvals={"reorder": dict(APPROVE, data_sha256=hashlib.sha256(data).hexdigest(), reference_sha256=hashlib.sha256(b"A\nB").hexdigest())})
         self.assertEqual(ok["verdict"], "MATCH")
         self.assertEqual([r["data_row"] for r in ok["alignment_table"]], [2, 1])
 

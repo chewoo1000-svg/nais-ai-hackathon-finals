@@ -102,7 +102,7 @@ def _ols(spec, data_sha, fit, info):
 
 
 def _approval(approvals, kind, data_sha, reference_sha):
-    """승인자·근거가 모두 있고, 지문이 적혀 있으면 현재 입력과 같을 때만 유효."""
+    """승인자·근거와 두 입력 지문이 모두 있고 현재 입력과 같을 때만 유효."""
     approval = approvals.get(kind)
     if not (isinstance(approval, dict) and approval.get("approver") and approval.get("basis")):
         return None
@@ -112,7 +112,11 @@ def _approval(approvals, kind, data_sha, reference_sha):
                             {"approval": kind, "field": key, "approved": approval[key], "current": current})
     # [수정: 0 이영 · Claude] 2026-09-30 23:51 KST — 승인에 지문이 없어도 현재 입력 지문을 bound_*로 적어 "이 입력에 묶여 승인됨"으로 보이게 했다
     # (1_이채우_경계검증 changed_reference_same_approval). 승인이 실제로 가진 지문만 적고, 없는 것은 unbound_fields에 밝힌다.
+    # [수정: 3 조지현] 2026-10-01T01:21:00+09:00 — 지문 없는 저장 승인 재사용을 막는다. 현재 지문을 자동 채워 사람 승인을 생성하지 않는다.
     unbound = [key for key in ("data_sha256", "reference_sha256") if approval.get(key) is None]
+    if unbound:
+        raise GateError("APPROVAL_UNBOUND", "승인에 자료·기준 식별자 지문이 필요합니다. 현재 입력을 다시 확인하고 직접 승인하세요.",
+                        {"approval": kind, "missing_fields": unbound})
     return {"type": kind, "approver": approval["approver"], "basis": approval["basis"],
             "approved_at_kst": approval.get("approved_at_kst"),
             "bound_data_sha256": approval.get("data_sha256"), "bound_reference_sha256": approval.get("reference_sha256"),
