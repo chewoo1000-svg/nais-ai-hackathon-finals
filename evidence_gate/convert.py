@@ -1,8 +1,8 @@
-"""정규 명세 v2 ↔ 검토 대상 준비본의 두 형식(AI 제안 검사기·등록 사례).
+"""정규 명세 v2 ↔ 검토 대상 자료의 두 형식(AI 제안 검사기·등록 사례).
 
 변환할 수 없는 의미는 버리지 않고 unresolved에 적는다. unresolved가 있으면 target은 None이다.
 not_carried는 대상 형식에 자리가 없어 호출 측 문맥이 따로 보관해야 하는 값이다.
-형식 기준: 준비본 core/proposal_intake.py, tools/case_registry.py (지문은 docs 구현 기록 참고).
+형식 기준: 자료 core/proposal_intake.py, tools/case_registry.py (지문은 docs 구현 기록 참고).
 """
 
 from __future__ import annotations
@@ -29,22 +29,22 @@ def _common_unresolved(spec, unresolved):
 
 
 def to_proposal_intake(spec):
-    """v2 → 준비본 AI 제안 검사기 JSON(column·row_count·evidence{source_page, source_quote})."""
+    """v2 → 자료 AI 제안 검사기 JSON(column·row_count·evidence{source_page, source_quote})."""
     unresolved, not_carried = [], []
     _common_unresolved(spec, unresolved)
     method = spec.get("method")
     if method not in (None, "row_count", "mean"):
-        unresolved.append(f"method {method}: 준비본 제안 형식에 같은 의미의 방법이 없음")
+        unresolved.append(f"method {method}: 자료 제안 형식에 같은 의미의 방법이 없음")
     column = "__dataset__" if method == "row_count" else spec.get("variable")
     if method == "mean" and column is None:
         unresolved.append("variable: 값 없음")
     if spec.get("missing_policy") != "complete_case":
-        unresolved.append(f"missing_policy {spec.get('missing_policy')}: 준비본 제안 형식은 complete_case만 받음")
+        unresolved.append(f"missing_policy {spec.get('missing_policy')}: 자료 제안 형식은 complete_case만 받음")
     if method == "mean" and spec.get("missing_tokens") not in (None, [""]):
-        unresolved.append("missing_tokens: 준비본 제안 형식에 결측 표기 필드가 없음")
+        unresolved.append("missing_tokens: 자료 제안 형식에 결측 표기 필드가 없음")
     for key in ("denominator", "unit"):
         if spec.get(key) is None:
-            unresolved.append(f"{key}: 준비본 제안 형식 필수인데 값 없음")
+            unresolved.append(f"{key}: 자료 제안 형식 필수인데 값 없음")
     page, quote = None, None
     location = spec.get("source_location")
     if isinstance(location, dict):
@@ -52,7 +52,7 @@ def to_proposal_intake(spec):
         if match:
             page = int(match.group(1))
         else:
-            unresolved.append("source_location.locator: 준비본 제안 형식은 정수 쪽 번호만 받음")
+            unresolved.append("source_location.locator: 자료 제안 형식은 정수 쪽 번호만 받음")
         quote = location["quote"]
         not_carried.append("source_location.source_id")
     if spec.get("field_evidence"):
@@ -68,7 +68,7 @@ def to_proposal_intake(spec):
 
 
 def from_proposal_intake(proposal, *, source_id, missing_tokens=None):
-    """준비본 제안 → v2. 제안 형식에 없는 source_id·missing_tokens는 호출 측이 준다."""
+    """자료 제안 → v2. 제안 형식에 없는 source_id·missing_tokens는 호출 측이 준다."""
     spec = empty_spec(proposal["claim_id"])
     method = proposal["method"]
     spec.update(method=method, reported_value=proposal["reported_value"], tolerance=proposal["tolerance"],
@@ -83,7 +83,7 @@ def from_proposal_intake(proposal, *, source_id, missing_tokens=None):
 
 
 def to_case_registry(spec, context):
-    """v2 → 준비본 등록 사례(count_rows·필터 사전·drop/error). context는 논문·파일 경로 등."""
+    """v2 → 자료 등록 사례(count_rows·필터 사전·drop/error). context는 논문·파일 경로 등."""
     unresolved, not_carried = [], []
     _common_unresolved(spec, unresolved)
     for key in REGISTRY_CONTEXT:
@@ -92,7 +92,7 @@ def to_case_registry(spec, context):
     method = spec.get("method")
     registry_method = {"row_count": "count_rows", "mean": "mean"}.get(method)
     if method is not None and registry_method is None:
-        unresolved.append(f"method {method}: 준비본 등록 형식에 같은 의미의 방법이 없음")
+        unresolved.append(f"method {method}: 자료 등록 형식에 같은 의미의 방법이 없음")
     filters = {}
     for f in spec.get("filters") or []:
         if not isinstance(f["value"], str):
@@ -127,7 +127,7 @@ def to_case_registry(spec, context):
 
 
 def from_case_registry(case, *, source_id):
-    """준비본 등록 사례 → v2."""
+    """자료 등록 사례 → v2."""
     spec = empty_spec(case["claim_id"])
     method = {"count_rows": "row_count", "mean": "mean"}[case["method"]]
     spec.update(method=method, reported_value=case["reported_value"], tolerance=case["tolerance"],

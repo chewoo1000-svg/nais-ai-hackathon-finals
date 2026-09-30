@@ -5,7 +5,7 @@
     "sha256": "144f623143c9360fd77322a4f86acb06dc198814dbd2669724c63e6457b907bd",
     "license": "CC0 (palmerpenguins data)",
     "imported_at_kst": "2026-09-30T22:28:56+09:00",
-    "import_method": "본선 저장소 작업 중 고정 커밋 URL에서 새로 내려받음. 지문은 검토 대상 준비본 등록 사례의 data_sha256과 같음",
+    "import_method": "본선 저장소 작업 중 고정 커밋 URL에서 새로 내려받음. 지문은 검토 대상 자료 등록 사례의 data_sha256과 같음",
     "claim_source": "https://journal.r-project.org/articles/RJ-2022-020/ (본문 인용만 명세에 둠, 원문 HTML은 저장하지 않음)"
   }
 }

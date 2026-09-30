@@ -10,6 +10,42 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED = {"이영": 0, "이채우": 1, "임도윤": 2, "조지현": 3}
+PRODUCT_VERSION = re.compile(r"(?i)(?<![a-z0-9@])v([0-9]+)(?![a-z0-9])")
+EXTERNAL_REFERENCE = re.compile(
+    r"(?i)(?:[a-z][a-z0-9+.-]*://[^\s<>\"']+|\b10\.[0-9]{4,9}/[^\s<>\"']+)"
+)
+TEXT_SUFFIXES = {".md", ".json", ".txt", ".py", ".js", ".html", ".css", ".yml", ".yaml", ".toml"}
+IGNORED_PARTS = {".git", ".venv", "venv", "node_modules", "__pycache__", ".pytest_cache"}
+PROTECTED_PREFIXES = (("data",), ("finals", "evidence"))
+
+
+def has_product_version(text):
+    visible = EXTERNAL_REFERENCE.sub("", text)
+    label = "".join(chr(code) for code in (0xC900, 0xBE44, 0xBCF8))
+    numeric_release = re.finditer(r"(?i)(?<![a-z0-9.])([0-9]+)\.0\.0(?![a-z0-9.])", visible)
+    return (label in visible
+            or any(int(match.group(1)) >= 4 for match in PRODUCT_VERSION.finditer(visible))
+            or any(int(match.group(1)) >= 4 for match in numeric_release))
+
+
+def product_version_failures(root):
+    failures = []
+    for path in sorted(root.rglob("*")):
+        relative = path.relative_to(root)
+        if any(relative.parts[:len(prefix)] == prefix for prefix in PROTECTED_PREFIXES) or any(part in IGNORED_PARTS for part in relative.parts):
+            continue
+        if has_product_version(relative.as_posix()):
+            failures.append(f"{relative}: 프로젝트 버전 파일명 불일치")
+        if not path.is_file() or path.suffix.lower() not in TEXT_SUFFIXES:
+            continue
+        try:
+            content = path.read_text(encoding="utf-8-sig")
+        except UnicodeDecodeError:
+            continue
+        for number, line in enumerate(content.splitlines(), 1):
+            if has_product_version(line):
+                failures.append(f"{relative}:{number}: 프로젝트 버전 표기 불일치")
+    return failures
 
 
 def check():
@@ -27,10 +63,7 @@ def check():
         failures.append("VERSION은 담당자 고정 번호 0/1/2/3이어야 함")
 
     upload_baseline = datetime.fromisoformat(team["upload_not_before_kst"])
-    for path in (ROOT / "docs").rglob("*"):
-        if path.is_file() and path.suffix in {".md", ".json"}:
-            if any(int(match.group(1) or match.group(2)) not in EXPECTED.values() for match in re.finditer(r"(?i)(?<![a-z0-9])v([0-9]+)\b|\b([0-9]+)\.0\.0\b", path.read_text(encoding="utf-8"))):
-                failures.append(f"{path.relative_to(ROOT)}: 프로젝트 버전 표기 불일치")
+    failures.extend(product_version_failures(ROOT))
     if os.environ.get("GITHUB_ACTIONS") == "true":
         subject = subprocess.check_output(["git", "log", "-1", "--format=%s"], cwd=ROOT, text=True).strip()
         match = re.match(r"^\[([0-3]) (이영|이채우|임도윤|조지현)\]", subject)
@@ -68,7 +101,7 @@ def check():
     return {
         "contributor_version": int(lead) if lead.isdigit() else None,
         "checked_at_kst": now.isoformat(timespec="seconds"),
-        "scope": "담당 번호·JSON 형식·선택된 KST 작업 필드·핵심 문서 링크",
+        "scope": "담당 번호·JSON 형식·선택된 KST 작업 필드·핵심 문서 링크·현재 제품 표기",
         "json_files_checked": json_count,
         "status": "PASS" if not failures else "FAIL",
         "failures": failures,

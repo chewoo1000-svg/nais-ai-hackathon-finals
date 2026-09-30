@@ -1,2 +1,7 @@
 # Exact release bytes; source/data hashes must survive checkout on every platform.
 * -text
+
+# Preserve captured and sealed input bytes during whitespace checks.
+data/** -whitespace
+finals/evidence/** -whitespace
+finals/results/** -whitespace

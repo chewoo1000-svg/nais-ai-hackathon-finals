@@ -1,6 +1,7 @@
 # NAIS AI 해커톤 본선
 
-- 본선 시작 기준: **2026-09-30 17:55:37 KST**
+- 저장소 작업 기준: **2026-09-30 17:55:37 KST**
+- 공식 프로젝트 시작: **2026-09-30 17:40 KST**
 - 본선 시작 태그: **v0.0.0**
 - 최근 반영: **버전 1 · 이채우** (VERSION = 마지막으로 올린 담당자 번호)
 - 팀 번호: 이영 0 / 이채우 1 / 임도윤 2 / 조지현 3. 번호는 증가하지 않습니다.
@@ -40,3 +41,32 @@ python -m unittest discover -s tests -t .
 
 - [최소 실행 경로 독립 검증과 다음 보완 순서](1_이채우_단계별검증과보완계획.md)
 - [경계 검증 재현 코드](1_이채우_경계검증.py) · [실제 실행 결과](1_이채우_경계검증_실행결과.json)
+
+## 본선 집중 시연 — 0 이영
+
+```powershell
+python -m pip install -r requirements.txt
+python -m streamlit run app.py --server.address 127.0.0.1 --server.port 8518
+```
+
+입력과 근거 확인 → 여섯 조건 확인 → 결정적 계산 → 변경 재검산 → 사람 직접 승인 → 보고서 저장·재열기를 제공한다. 같은 창에서 입력·모드를 바꾸면 승인 상태를 해제한다. 모델 생성은 공급자 잔액 부족으로 미실행이며 로컬 경로를 사용한다.
+
+이 공개 화면의 자료는 연락처를 제외한 파생 HTML이며 수치 CSV는 원래 바이트를 유지했다. 원문/파생 SHA를 구분한다. 전체 논문 검색 앱과 원문 자료는 로컬 작업트리에 보존했고 공개 시연 범위에 포함하지 않았다.
+
+- [실행안·발표·질의응답](docs/0_이영_본선실행안.md)
+- [공개 파일 범위와 봉인 원본 복원 정보](docs/0_이영_공개범위.json)
+- [원본 C01~C08 봉인 명세](finals/evidence/seal.json)
+- [실제 로컬 8건 결과](finals/results/48673ff615504275b3118c026dda9cc6/presentation-table.md)
+
+원본 실험의 연락처 포함 입력 10개는 공개하지 않는다. 등록 입력을 바꾸지 않은 전체 묶음은 팀 로컬 자료 폴더의 `0_이영_비공개_봉인입력.zip`에 보관했다. 복원 도구로 지문을 대조한 뒤 `python finals/comparison.py verify`로 확인한다. 이 복원 전에는 GitHub 복사본에서 원본 실험 전체를 재현할 수 없다. 공개 시연의 파생 입력 시험과 원본 8건 결과를 구분한다.
+
+```powershell
+python -m pytest tests finals/tests tools/test_product_metadata_guard.py -q
+python tools/check_finals_metadata.py
+```
+
+원본 비교 입력 복원 명령: `python tools/restore_sealed_inputs.py "비공개 봉인입력 ZIP 경로"`. 묶음 전체와 28개 파일의 지문을 모두 확인한 뒤에만 복원한다.
+
+공개 집중 시연과 팀 신규 명세 기능 통합 시험: **75 passed, 28.91초**, Python 환경은 requirements.txt의 실제 시험 버전이다. 실제 모델 호출·원본 전체 논문 검색 앱·클라우드 외부 배포를 검증한 수치는 아니다.
+
+최신 팀 기능 통합 검증: **89 통과·1 건너뜀, 32.86초**. 건너뛴 시험은 `EVIDENCE_GATE_A2_DIR` 미설정으로 저자 A2 원본 파일을 사용하지 못한 항목이다. 현재 실행된 범위와 실제 AI·A2 원본·클라우드 완주를 구분한다.

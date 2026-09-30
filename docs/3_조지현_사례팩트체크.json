@@ -154,6 +154,6 @@
   ],
   "product_self_check": {
     "updated_by_missing": "core/research_watch.py fetch_metadata가 Crossref updated-by 미저장. 10.1111/evo.14483 조회 시 updates=[], relations={} (2026-09-30 재현)",
-    "scope": "사전 검토 대상 준비본 코드 기준. 본선 저장소 미편입"
+    "scope": "사전 검토 대상 자료 코드 기준. 본선 저장소 미편입"
   }
 }

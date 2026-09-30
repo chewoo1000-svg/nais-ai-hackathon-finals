@@ -121,7 +121,7 @@ class ConverterTest(unittest.TestCase):
         self.assertIn("missing_policy error", joined)
         self.assertIn("denominator", joined)
         section = dict(VALID["row_count"], source_location={"source_id": "S", "locator": "Main text", "quote": "q"})
-        self.assertIn("source_location.locator: 준비본 제안 형식은 정수 쪽 번호만 받음",
+        self.assertIn("source_location.locator: 자료 제안 형식은 정수 쪽 번호만 받음",
                       convert.to_proposal_intake(section)["unresolved"])
 
     def test_registry_round_trip_row_count_and_mean(self):
