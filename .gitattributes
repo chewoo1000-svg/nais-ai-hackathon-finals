@@ -4,3 +4,5 @@
 /finals/evidence/** -text
 /core/research_corpus.py -text
 /docs/intake/** -text
+# [1 이채우] Windows에서도 등록된 검산 자료의 바이트 지문을 보존한다.
+/evidence_gate/fixtures/** -text
