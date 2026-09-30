@@ -187,7 +187,7 @@ def render_research_data(actor):
         st.session_state.pop(result_key, None)
     st.caption('버튼을 누르면 위 조건만 원제공 API로 전송합니다. 개인정보·비공개 자료·연결정보는 입력하지 마세요. 최대 5건을 표시합니다.')
     if st.button('선택한 출처에서 자료 찾기', type='primary', disabled=needs_key,
-                 use_container_width=True, key=scoped_key(actor, 'data_search')):
+                 width='stretch', key=scoped_key(actor, 'data_search')):
         st.session_state.pop(result_key, None)
         if SECRET_PATTERN.search(query) or any(ord(c) < 32 or ord(c) == 127 for c in query):
             st.warning('공개 검색어만 입력하세요. 비공개 연결정보가 포함된 입력은 전송하지 않습니다.')

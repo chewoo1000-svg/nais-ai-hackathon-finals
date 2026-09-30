@@ -18,6 +18,7 @@ for module_root in (AGENT_ROOT.parent, AGENT_ROOT):
     if str(module_root) not in sys.path:
         sys.path.insert(0, str(module_root))
 
+from finals_explain import calculation_summary, reasons
 from finals_provider import ProviderError, availability, complete_json
 
 # [수정: 0 이영 · Claude] 2026-09-30 23:56 KST — 실행 기록(finals.pipeline)과 모듈 불러오기 오류를 서버 로그(Cloud 콘솔)로 내보낸다. 스크립트가 다시 실행돼도 핸들러는 한 번만 붙인다.
@@ -191,7 +192,7 @@ with left:
         if frame is not None:
             if not isinstance(frame,pd.DataFrame):
                 frame = pd.DataFrame(frame)
-            st.dataframe(frame.head(8), use_container_width=True, hide_index=True)
+            st.dataframe(frame.head(8), width="stretch", hide_index=True)
             st.caption(f"등록 자료 {len(frame):,}행 · {len(frame.columns)}열")
         else:
             st.info("원자료 미리보기가 제공되지 않았습니다.")
@@ -207,7 +208,7 @@ with left:
             pass
         fields = [("분석 방법","method"),("사용 열","column"),("포함·제외 조건","filters"),("분모","denominator"),("결측 처리","missing_policy"),("단위","unit")]
         rows = [{"검토 항목":label,"후보 조건":json.dumps(candidate.get(key),ensure_ascii=False) if candidate.get(key) is not None else "미확인","원문 확인":"직접 대조 필요"} for label,key in fields]
-        st.dataframe(pd.DataFrame(rows),use_container_width=True,hide_index=True)
+        st.dataframe(pd.DataFrame(rows),width="stretch",hide_index=True)
         if report and report.get("validation"):
             with st.expander("조건 검사 상세"):
                 st.json(public_snapshot(report["validation"]))
@@ -219,7 +220,7 @@ with right:
         mode = MODES[mode_label]
         if mode == "manual":
             st.caption("등록된 조건을 불러온 뒤 JSON 후보를 수정할 수 있습니다. 불러오기만으로 실행하거나 승인하지 않습니다.")
-            if st.button("수동 후보 불러오기", key="fin_manual_load", use_container_width=True):
+            if st.button("수동 후보 불러오기", key="fin_manual_load", width="stretch"):
                 invalidate_review()
                 st.session_state["fin_candidate_text"] = json.dumps(context["manual_proposal"],ensure_ascii=False,indent=2)
                 st.rerun()
@@ -233,7 +234,7 @@ with right:
                 st.info("실시간 AI는 운영자가 켜지 않았습니다(서버 설정 NAIS_ALLOW_LIVE_AI=1). 수동 작성으로 검토할 수 있습니다.")
             elif live_runs >= live_max:
                 st.info(f"이 화면에서 실시간 AI를 {live_max}회 모두 사용했습니다. 수동 작성으로 계속할 수 있습니다.")
-            if st.button("실시간 AI로 후보 생성", key="fin_live_generate", disabled=not live_ready, use_container_width=True):
+            if st.button("실시간 AI로 후보 생성", key="fin_live_generate", disabled=not live_ready, width="stretch"):
                 try:
                     st.session_state["fin_live_runs"] = live_runs + 1  # 호출 전에 센다: 실패해도 횟수는 소모된다
                     invalidate_review()
@@ -252,14 +253,14 @@ with right:
             if not replays:
                 st.info("저장된 실제 AI 응답이 없습니다. 수동 작성 또는 실시간 AI를 선택하세요.")
             replay_path = st.selectbox("실제 응답 파일",[item["path"] for item in replays],format_func=lambda path:Path(path).name,key="fin_replay_file",disabled=not replays) if replays else None
-            if st.button("저장 응답으로 검토",key="fin_replay_run",disabled=not replays,use_container_width=True):
+            if st.button("저장 응답으로 검토",key="fin_replay_run",disabled=not replays,width="stretch"):
                 try:
                     st.session_state["fin_report"] = public_snapshot(pipeline.run_case(case_id,mode="replay",replay_path=replay_path))
                     st.rerun()
                 except Exception as exc:
                     notice_error(exc)
         candidate_text = st.text_area("후보 JSON", key="fin_candidate_text",height=240,on_change=invalidate_review,help="원문 보고값과 자료 지문을 유지하고, 알 수 없는 조건은 추측하지 않습니다.")
-        if st.button("조건 검산",key="fin_compute",type="primary",disabled=not candidate_text.strip(),use_container_width=True):
+        if st.button("조건 검산",key="fin_compute",type="primary",disabled=not candidate_text.strip(),width="stretch"):
             try:
                 with st.spinner("조건과 원문을 대조하고 다시 계산하고 있습니다…"):
                     st.session_state["fin_report"] = public_snapshot(pipeline.run_case(case_id,mode="manual",proposal_text=candidate_text))
@@ -281,6 +282,15 @@ with right:
                 st.warning(STATE_NAMES.get(state,state))
             else:
                 st.info(STATE_NAMES.get(state,state))
+            # [수정: 0 이영 · Claude] 2026-10-01 00:37 KST — 판정 이유가 JSON 안의 영문 코드로만 보였다. 한 문장 요약과 이유 목록을 먼저 보여 주고 JSON은 그대로 둔다.
+            summary_line = calculation_summary(report.get("calculation"))
+            if summary_line:
+                st.write(summary_line)
+            explained = reasons(report)
+            if explained:
+                st.markdown("**판정 이유**")
+                for line in explained:
+                    st.write("· " + line)
             if report.get("calculation"):
                 st.json(public_snapshot(report["calculation"]))
             if report.get("reason"):
@@ -289,7 +299,7 @@ with right:
             if critique:
                 with st.expander("검토 의견",expanded=True):
                     st.json(public_snapshot(critique)) if isinstance(critique,(dict,list)) else st.write(str(critique))
-            if st.button("자료 변경 후 재검산",key="fin_change",use_container_width=True):
+            if st.button("자료 변경 후 재검산",key="fin_change",width="stretch"):
                 try:
                     st.session_state["fin_report"] = public_snapshot(pipeline.recheck_changed_input(report))
                     st.session_state["fin_human_confirm"] = False
@@ -307,7 +317,7 @@ with right:
             can_approve = report.get("can_approve") is True and not approved(report)
             if not can_approve:
                 st.caption("현재 상태에서는 승인할 수 없습니다. 근거·검산·변경 상태를 먼저 확인하세요.")
-            if st.button("직접 확인하고 승인",key="fin_approve",disabled=not(can_approve and confirmed and reason.strip()),use_container_width=True):
+            if st.button("직접 확인하고 승인",key="fin_approve",disabled=not(can_approve and confirmed and reason.strip()),width="stretch"):
                 try:
                     st.session_state["fin_report"] = public_snapshot(pipeline.approve_report(report,reason=reason,confirmed=confirmed))
                     st.rerun()

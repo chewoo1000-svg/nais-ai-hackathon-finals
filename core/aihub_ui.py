@@ -55,7 +55,7 @@ def render_aihub(actor):
         saved = st.session_state.get(result_key)
         if saved and saved.get('signature') != signature:
             st.session_state.pop(result_key, None)
-        if st.button('AI Hub 데이터 찾기', key=scoped_key(actor, 'aihub_search'), use_container_width=True):
+        if st.button('AI Hub 데이터 찾기', key=scoped_key(actor, 'aihub_search'), width='stretch'):
             st.session_state.pop(result_key, None)
             if not query:
                 st.info('찾고 싶은 공개 연구 주제를 입력하세요.')

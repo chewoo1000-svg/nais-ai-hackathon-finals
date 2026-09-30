@@ -88,7 +88,7 @@ def render_paper_discovery(actor, on_task=None):
     for offset in (0, 3):
         columns = st.columns(3)
         for column, (name, (label, query)) in zip(columns, list(TOPICS.items())[offset:offset + 3]):
-            if column.button(label, key=scoped_key(actor, 'discovery_topic_' + name), use_container_width=True):
+            if column.button(label, key=scoped_key(actor, 'discovery_topic_' + name), width='stretch'):
                 st.session_state[query_key] = query
     st.caption('시작을 돕는 주제 예시입니다. 검색량으로 매긴 인기 순위는 아닙니다.')
     fields = get_fields()
@@ -118,7 +118,7 @@ def render_paper_discovery(actor, on_task=None):
     saved = st.session_state.get(result_key)
     if saved and saved['signature'] != signature:
         st.session_state.pop(result_key, None)
-    if st.button('논문 찾기 · 새로고침', type='primary', key=scoped_key(actor, 'discovery_search'), use_container_width=True):
+    if st.button('논문 찾기 · 새로고침', type='primary', key=scoped_key(actor, 'discovery_search'), width='stretch'):
         st.session_state.pop(result_key, None)
         if not query:
             st.info('관심 분야를 고르거나 검색어를 입력하세요.')
