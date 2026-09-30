@@ -1,0 +1,13 @@
+{
+  "contributor_version": 3,
+  "recorded_at_kst": "2026-09-30T20:00:57+09:00",
+  "_change_note": "계획 산출물 변경 뒤 지문 갱신. 비교 실험 입력 봉인과 구분.",
+  "scope": "계획 산출물 지문이며 실험 입력 봉인이 아님",
+  "files": {
+    "comparison-protocol.json": "d29b2710fa10c0b08fe4b011d3a3fc3692e249f0ecca9f8ccf9ad9defb9eaf78",
+    "extraction.schema.json": "772306091d8d1dfbd211cfbaecd96ab490c4a22ce809c10330862e8d9871e5a7",
+    "observations-template.csv": "f15f97679c9a6777345197c7587ddd6483c5bb8e073aff253530d39bad439300",
+    "3_조지현_실행전략.md": "3a4bf3338163fc02059e0902e502f97858f5d413af1ab9f6799e522e67a3ad4a"
+  },
+  "document_updated_at_kst": "2026-09-30T20:08:56+09:00"
+}
