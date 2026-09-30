@@ -21,7 +21,7 @@ for module_root in (AGENT_ROOT.parent, AGENT_ROOT):
 from finals_explain import calculation_summary, reasons
 from finals_provider import ProviderError, availability, complete_json
 
-# [수정: 0 이영 · Claude] 2026-10-01 00:50 KST — 실행 기록(finals.pipeline)과 모듈 불러오기 오류를 서버 로그(Cloud 콘솔)로 내보낸다. 스크립트가 다시 실행돼도 핸들러는 한 번만 붙인다.
+# [수정: 0 이영 · Claude] 2026-10-01 01:05 KST — 실행 기록(finals.pipeline)과 모듈 불러오기 오류를 서버 로그(Cloud 콘솔)로 내보낸다. 스크립트가 다시 실행돼도 핸들러는 한 번만 붙인다.
 _log = logging.getLogger("finals")
 if not _log.handlers:
     _handler = logging.StreamHandler()
@@ -115,7 +115,7 @@ try:
     import finals_cases as cases
     import finals_pipeline as pipeline
 except ImportError as error:
-    # [수정: 0 이영 · Claude] 2026-10-01 00:50 KST — 실제 원인(예: 배포 환경에 빠진 패키지)을 서버 로그에 남긴다. 화면에는 안내만 보인다.
+    # [수정: 0 이영 · Claude] 2026-10-01 01:05 KST — 실제 원인(예: 배포 환경에 빠진 패키지)을 서버 로그에 남긴다. 화면에는 안내만 보인다.
     logging.getLogger("finals.app").error("본선 분석 모듈 불러오기 실패: %s", error)
     st.error("본선 분석 모듈을 준비 중입니다. 연결이 완료되면 사례 검토를 시작할 수 있습니다.")
     st.stop()
@@ -141,7 +141,7 @@ with st.container(border=True):
         st.caption("인증 설정 있음 · " + str(status.get("model", "모델 확인 필요")))
         previous = health_record()
         if previous.get("status") == "GENERATION_BLOCKED":
-            # [수정: 0 이영 · Claude] 2026-10-01 00:50 KST — 점검 기록 파일은 과거 사실이다. 시각을 함께 보여 현재 상태로 오해하지 않게 한다.
+            # [수정: 0 이영 · Claude] 2026-10-01 01:05 KST — 점검 기록 파일은 과거 사실이다. 시각을 함께 보여 현재 상태로 오해하지 않게 한다.
             st.warning("가장 최근 생성 요청은 사용 한도 문제로 중단됐습니다." + (f" (점검 기록 {previous['checked_at_kst']})" if previous.get("checked_at_kst") else ""))
             st.caption("실제 응답이 생성되기 전에는 AI 분석을 완료로 표시하지 않습니다.")
     else:
@@ -210,7 +210,7 @@ with right:
                 st.rerun()
         elif mode == "live":
             st.caption("선택한 공개 원문과 허용된 자료 정보로 실제 후보 생성을 요청합니다. 한 번 누르면 모델을 최대 2회 호출합니다.")
-            # [수정: 0 이영 · Claude] 2026-10-01 00:50 KST — 공개 배포에서 방문자가 유료 호출을 반복하지 못하게: 운영자가 켠 경우에만, 화면(세션)당 횟수 상한 안에서만 실행한다.
+            # [수정: 0 이영 · Claude] 2026-10-01 01:05 KST — 공개 배포에서 방문자가 유료 호출을 반복하지 못하게: 운영자가 켠 경우에만, 화면(세션)당 횟수 상한 안에서만 실행한다.
             live_runs = int(st.session_state.get("fin_live_runs", 0))
             live_max = _int_env("NAIS_LIVE_MAX_RUNS", 3)
             live_ready = bool(status.get("available", False)) and bool(status.get("live_allowed", False)) and live_runs < live_max
@@ -266,7 +266,7 @@ with right:
                 st.warning(STATE_NAMES.get(state,state))
             else:
                 st.info(STATE_NAMES.get(state,state))
-            # [수정: 0 이영 · Claude] 2026-10-01 00:50 KST — 판정 이유가 JSON 안의 영문 코드로만 보였다. 한 문장 요약과 이유 목록을 먼저 보여 주고 JSON은 그대로 둔다.
+            # [수정: 0 이영 · Claude] 2026-10-01 01:05 KST — 판정 이유가 JSON 안의 영문 코드로만 보였다. 한 문장 요약과 이유 목록을 먼저 보여 주고 JSON은 그대로 둔다.
             summary_line = calculation_summary(report.get("calculation"))
             if summary_line:
                 st.write(summary_line)
@@ -282,7 +282,11 @@ with right:
             critique = report.get("critique")
             if critique:
                 with st.expander("검토 의견",expanded=True):
-                    st.json(public_snapshot(critique)) if isinstance(critique,(dict,list)) else st.write(str(critique))
+                    # [수정: 0 이영] 2026-10-01 00:52 KST — 검토 의견 호출의 반환 객체가 화면에 출력되는 현상을 방지한다.
+                    if isinstance(critique, (dict, list)):
+                        st.json(public_snapshot(critique))
+                    else:
+                        st.write(str(critique))
             if st.button("자료 변경 후 재검산",key="fin_change",width="stretch"):
                 try:
                     st.session_state["fin_report"] = public_snapshot(pipeline.recheck_changed_input(report))
