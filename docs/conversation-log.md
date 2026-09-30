@@ -1,4 +1,3 @@
-warning: in the working copy of 'docs/conversation-log.md', LF will be replaced by CRLF the next time Git touches it
 # NAIS AI 해커톤 본선 — 대화 기록
 
 이 Codex 채팅의 사용자 요청, 답변, 결정 사항과 작업 결과를 기록합니다.
