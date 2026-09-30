@@ -7116,13 +7116,16 @@
     },
     "regression_run": {
       "tests": [
-        "tests/test_v68.py",
-        "tests/test_v69.py",
-        "tests/test_v105_team_corpus.py"
+        "tests/test_case68.py",
+        "tests/test_case69.py",
+        "tests/test_case105_team_corpus.py"
       ],
       "passed": 36,
-      "elapsed_seconds": 10.16,
-      "exit_code": 0
+      "elapsed_seconds": 5.81,
+      "exit_code": 0,
+      "started_at_kst": "2026-10-01T01:20:54+09:00",
+      "ended_at_kst": "2026-10-01T01:21:06+09:00",
+      "scope": "현재 공개 시험 경로의 실제 재실행. 이전 실행 수치와 합산하지 않음."
     },
     "correction_inventory_run": {
       "test": "tests/test_v86.py::test_all_teammate_documents_are_valid_and_not_execution_results",
@@ -7141,6 +7144,16 @@
     "r_comment": {
       "executable_noncomment_lines_preserved": true,
       "r_code_executed": false
+    },
+    "previous_regression_run_summary": {
+      "passed": 36,
+      "elapsed_seconds": 10.16,
+      "exit_code": 0,
+      "test_path_sha256": [
+        "87ed5fd4eeb6f3060949b50e86decac1ec9b6138f5fc59977e51684d576466f3",
+        "d5f50037fc23e52355d0c5b4de65e5b2b133c5389cea7d00649f2399dd60312e",
+        "9dc2bb98ba6d2c6d9b0750bb57575af2507b682d357de9ad3971238277b2050f"
+      ]
     }
   },
   "assembly_at_kst": "2026-10-01T00:05:40.222751+09:00",
