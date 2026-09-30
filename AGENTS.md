@@ -4,7 +4,7 @@
 
 - 공식 저장소: https://github.com/twozero3213-beep/nais-ai-hackathon-finals
 - 본선 시작 기준: 2026-09-30 17:55:37 KST.
-- 시작 태그: v0.0.0. 담당 번호의 기준 파일은 TEAM_VERSIONS.json입니다.
+- 담당 번호의 기준 파일은 TEAM_VERSIONS.json입니다.
 - 새 작업·실행은 실제 현재 시각(KST)으로 기록하고, 자료·Git 기록의 날짜는 바꾸지 않습니다.
 
 ## 팀 담당 버전

@@ -26,7 +26,6 @@
     "version": 0,
     "commit_prefix": "[0 이영]"
   },
-  "baseline_tag": "v0.0.0",
   "timestamp_meaning": {
     "finals_started_at_kst": "본선 작업 기준 시각",
     "recorded_at_kst": "이 규칙을 실제 기록한 시각",
