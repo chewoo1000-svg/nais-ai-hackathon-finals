@@ -27,6 +27,14 @@ class ProductMetadataGuardTests(unittest.TestCase):
             self.assertFalse(GUARD.has_product_version(value), value)
         self.assertTrue(GUARD.has_product_version("https://example.org/path label " + token(44)))
 
+    # [작성: 0 이영 · Claude] 2026-10-01 00:12 KST — 외부 서비스가 정한 API 경로 버전만 정확히 허용하고 제품 버전은 계속 잡는다.
+    def test_official_external_api_version_is_allowed_but_product_versions_are_not(self):
+        self.assertFalse(GUARD.has_product_version("/technology/datagov/" + token(4) + "/search?query=x"))
+        self.assertFalse(GUARD.has_product_version("'Data.gov " + token(4) + "'"))
+        self.assertTrue(GUARD.has_product_version("/technology/datagov/" + token(5) + "/search"))
+        self.assertTrue(GUARD.has_product_version("Data.gov " + token(105)))
+        self.assertTrue(GUARD.has_product_version("/other/" + token(4) + "/search"))
+
     def test_source_corpus_protected_intake_and_code_checked(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

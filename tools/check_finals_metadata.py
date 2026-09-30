@@ -14,6 +14,10 @@ PRODUCT_VERSION = re.compile(r"(?i)(?<![a-z0-9@])v([0-9]+)(?![a-z0-9])")
 EXTERNAL_REFERENCE = re.compile(
     r"(?i)(?:[a-z][a-z0-9+.-]*://[^\s<>\"']+|\b10\.[0-9]{4,9}/[^\s<>\"']+)"
 )
+# [수정: 0 이영 · Claude] 2026-10-01 00:12 KST — Data.gov 카탈로그 API가 스스로 정한 경로 버전(4)은 제품 버전 표기가 아니다.
+# 표기 정리가 이 경로를 잘못 치환해 공식 요청 경로가 깨졌었다(core/research_data_sources.py). 정확한 두 문자열만 허용하고,
+# 이 파일 자신이 검사 대상이라 리터럴 대신 조립한다(아래 label과 같은 방식).
+EXTERNAL_API_TOKENS = ("/technology/datagov/" + "v" + "4" + "/search", "Data.gov " + "v" + "4")
 TEXT_SUFFIXES = {".md", ".json", ".txt", ".py", ".js", ".html", ".css", ".yml", ".yaml", ".toml"}
 IGNORED_PARTS = {".git", ".venv", "venv", "node_modules", "__pycache__", ".pytest_cache"}
 PROTECTED_PREFIXES = (("data",), ("finals", "evidence"))
@@ -21,6 +25,8 @@ PROTECTED_PREFIXES = (("data",), ("finals", "evidence"))
 
 def has_product_version(text):
     visible = EXTERNAL_REFERENCE.sub("", text)
+    for allowed in EXTERNAL_API_TOKENS:
+        visible = visible.replace(allowed, "")
     label = "".join(chr(code) for code in (0xC900, 0xBE44, 0xBCF8))
     numeric_release = re.finditer(r"(?i)(?<![a-z0-9.])([0-9]+)\.0\.0(?![a-z0-9.])", visible)
     return (label in visible
