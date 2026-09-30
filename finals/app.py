@@ -18,32 +18,13 @@ for module_root in (AGENT_ROOT.parent, AGENT_ROOT):
 
 from finals_provider import ProviderError, availability, complete_json
 
-st.set_page_config(page_title="근거관문 · 버전 0", page_icon="◈", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="근거관문 · 근거 검산", page_icon=":material/fact_check:", layout="wide", initial_sidebar_state="collapsed")
 
-# 수정 이유: 시각 대비·16px 본문·키보드 포커스·좁은 화면의 재배치로 검토 동선을 읽기 쉽게 한다.
-st.markdown("""
-<style>
-:root{--ink:#152033;--navy:#172e50;--muted:#536277;--line:#d9e1eb;--paper:#fff;--bg:#f5f7fa}
-.stApp{font-family:'Malgun Gothic','Segoe UI',sans-serif;color:var(--ink);background:var(--bg)}
-.stMainBlockContainer{max-width:1440px;padding-top:2.4rem;padding-bottom:4rem}
-p,label,[data-testid='stMarkdownContainer']{font-size:16px;line-height:1.65}
-h1{font-size:48px!important;letter-spacing:-.045em;color:var(--navy);line-height:1.12!important}
-h2{font-size:25px!important;letter-spacing:-.03em}h3{font-size:19px!important}
-[data-testid='stSidebar']{border-right:1px solid var(--line)}
-[data-testid='stVerticalBlockBorderWrapper']>div{background:var(--paper);border-color:var(--line)!important;border-radius:12px!important}
-.stButton button,.stDownloadButton button{min-height:46px;font-weight:600;border-radius:8px;transition:background .16s ease}
-button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #3469a8!important;outline-offset:3px!important}
-[data-testid='stCaptionContainer']{color:var(--muted);font-size:14px!important}
-.final-kicker{font-size:12px;letter-spacing:.16em;font-weight:700;color:var(--muted);margin-bottom:12px}
-.final-summary{color:var(--muted);max-width:760px;font-size:17px;line-height:1.7;margin-bottom:24px}
-.final-rule{height:3px;background:var(--navy);margin:18px 0 28px;width:72px}
-.final-step{font-size:12px;letter-spacing:.1em;color:var(--muted);font-weight:700;margin:4px 0 8px}
-.final-note{border-left:3px solid var(--navy);padding:12px 16px;background:#edf2f8;line-height:1.7;overflow-wrap:anywhere}
-kbd{background:#e8edf4;border:1px solid #bdcadb;border-radius:4px;padding:2px 6px;font-size:12px}
-@media(max-width:760px){h1{font-size:36px!important}.stMainBlockContainer{padding-top:1.5rem;padding-left:1rem;padding-right:1rem}}
-@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-</style>
-""", unsafe_allow_html=True)
+# [수정: 0 이영] 2026-09-30 23:50 KST — 사용자 HTML 참고 공통 테마로 검산 화면을 맞추며 계산·확인 정책은 유지한다.
+from importlib import import_module
+web_theme = import_module("core.0_이영_웹테마")
+web_theme.render_theme()
+web_theme.render_brand()
 
 CATEGORIES = {"normal":"정상", "mismatch":"수치 불일치", "evidence_missing":"근거 부족", "data_changed":"자료 변경"}
 STATE_NAMES = {"ARITHMETIC_MATCH":"수치 일치", "MATCH":"수치 일치", "ARITHMETIC_MISMATCH":"수치 불일치", "MISMATCH":"수치 불일치", "BLOCK":"보류", "BLOCKED":"보류", "INPUT_CHANGED":"변경 후 재사용 차단", "APPROVED":"사람 확인 완료", "PROPOSED":"후보 접수", "NOT_RUN":"미실행", "SUPPORTED_PREVIEW":"조건 검산 완료", "CONFLICT_PREVIEW":"수치 불일치", "MISSING":"근거 부족", "BLOCKED_CHANGED_INPUT":"변경 후 재사용 차단"}
@@ -107,9 +88,9 @@ def health_record():
         return {}
 
 
-st.markdown('<div class="final-kicker">RESEARCH VERIFICATION / FINALS 2026</div>', unsafe_allow_html=True)
-st.title("근거관문")
-st.caption("본선 연구 검산 · 버전 0")
+st.markdown('<div class="final-kicker">EVIDENCE GATE · 근거 검산</div>', unsafe_allow_html=True)
+st.title("발견한 근거, 다시 계산해 볼까요?")
+st.caption("원문 · 분석 조건 · 자료 지문 · 사람 확인")
 st.markdown('<div class="final-summary">원문에서 조건을 확인하고, 데이터로 다시 계산합니다.<br>근거와 결과를 검토한 뒤 사람이 직접 승인합니다.</div><div class="final-rule"></div>', unsafe_allow_html=True)
 
 try:
@@ -120,8 +101,9 @@ except ImportError:
     st.stop()
 
 catalog = cases.list_cases()
-with st.sidebar:
-    st.caption("본선 작업 · 버전 0 · 이영")
+# [수정: 0 이영] 2026-09-30 23:54 KST — 사례와 작성 방법을 읽기 흐름에 보여 모바일에서도 바로 검토를 시작할 수 있게 한다.
+with st.container(border=True):
+    st.caption("본선 작업 · 담당 0 · 이영")
     st.subheader("검토할 사례")
     category = st.selectbox("사례 유형", ["전체",*CATEGORIES.values()], key="fin_category")
     selected = [item for item in catalog if category == "전체" or CATEGORIES.get(item.get("category")) == category]
@@ -156,7 +138,9 @@ summary[2].caption("사람 확인")
 summary[2].write("직접 승인 완료" if approved(report) else "미승인")
 st.divider()
 
-left, right = st.columns([1.08,1], gap="large")
+# [수정: 0 이영] 세로 카드 흐름으로 참고 화면의 좁은 읽기 폭을 유지한다.
+left = st.container()
+right = st.container()
 with left:
     with st.container(border=True):
         st.markdown('<div class="final-step">01 / SOURCE</div>', unsafe_allow_html=True)
@@ -171,7 +155,7 @@ with left:
         if frame is not None:
             if not isinstance(frame,pd.DataFrame):
                 frame = pd.DataFrame(frame)
-            st.dataframe(frame.head(8), use_container_width=True, hide_index=True)
+            st.dataframe(frame.head(8), width="stretch", hide_index=True)
             st.caption(f"등록 자료 {len(frame):,}행 · {len(frame.columns)}열")
         else:
             st.info("원자료 미리보기가 제공되지 않았습니다.")
@@ -187,7 +171,7 @@ with left:
             pass
         fields = [("분석 방법","method"),("사용 열","column"),("포함·제외 조건","filters"),("분모","denominator"),("결측 처리","missing_policy"),("단위","unit")]
         rows = [{"검토 항목":label,"후보 조건":json.dumps(candidate.get(key),ensure_ascii=False) if candidate.get(key) is not None else "미확인","원문 확인":"직접 대조 필요"} for label,key in fields]
-        st.dataframe(pd.DataFrame(rows),use_container_width=True,hide_index=True)
+        st.dataframe(pd.DataFrame(rows),width="stretch",hide_index=True)
         if report and report.get("validation"):
             with st.expander("조건 검사 상세"):
                 st.json(public_snapshot(report["validation"]))
@@ -199,13 +183,13 @@ with right:
         mode = MODES[mode_label]
         if mode == "manual":
             st.caption("등록된 조건을 불러온 뒤 JSON 후보를 수정할 수 있습니다. 불러오기만으로 실행하거나 승인하지 않습니다.")
-            if st.button("수동 후보 불러오기", key="fin_manual_load", use_container_width=True):
+            if st.button("수동 후보 불러오기", key="fin_manual_load", width="stretch"):
                 invalidate_review()
                 st.session_state["fin_candidate_text"] = json.dumps(context["manual_proposal"],ensure_ascii=False,indent=2)
                 st.rerun()
         elif mode == "live":
             st.caption("선택한 공개 원문과 허용된 자료 정보로 실제 후보 생성을 요청합니다.")
-            if st.button("실시간 AI 연결 다시 확인", key="fin_live_generate", disabled=not status.get("available",False), use_container_width=True):
+            if st.button("실시간 AI 연결 다시 확인", key="fin_live_generate", disabled=not status.get("available",False), width="stretch"):
                 try:
                     invalidate_review()
                     with st.spinner("공개 원문에서 조건 후보를 요청하고 있습니다…"):
@@ -223,14 +207,14 @@ with right:
             if not replays:
                 st.info("저장된 실제 AI 응답이 없습니다. 수동 작성 또는 실시간 AI를 선택하세요.")
             replay_path = st.selectbox("실제 응답 파일",[item["path"] for item in replays],format_func=lambda path:Path(path).name,key="fin_replay_file",disabled=not replays) if replays else None
-            if st.button("저장 응답으로 검토",key="fin_replay_run",disabled=not replays,use_container_width=True):
+            if st.button("저장 응답으로 검토",key="fin_replay_run",disabled=not replays,width="stretch"):
                 try:
                     st.session_state["fin_report"] = public_snapshot(pipeline.run_case(case_id,mode="replay",replay_path=replay_path))
                     st.rerun()
                 except Exception as exc:
                     notice_error(exc)
         candidate_text = st.text_area("후보 JSON", key="fin_candidate_text",height=240,on_change=invalidate_review,help="원문 보고값과 자료 지문을 유지하고, 알 수 없는 조건은 추측하지 않습니다.")
-        if st.button("조건 검산",key="fin_compute",type="primary",disabled=not candidate_text.strip(),use_container_width=True):
+        if st.button("조건 검산",key="fin_compute",type="primary",disabled=not candidate_text.strip(),width="stretch"):
             try:
                 with st.spinner("조건과 원문을 대조하고 다시 계산하고 있습니다…"):
                     st.session_state["fin_report"] = public_snapshot(pipeline.run_case(case_id,mode="manual",proposal_text=candidate_text))
@@ -260,7 +244,7 @@ with right:
             if critique:
                 with st.expander("검토 의견",expanded=True):
                     st.json(public_snapshot(critique)) if isinstance(critique,(dict,list)) else st.write(str(critique))
-            if st.button("자료 변경 후 재검산",key="fin_change",use_container_width=True):
+            if st.button("자료 변경 후 재검산",key="fin_change",width="stretch"):
                 try:
                     st.session_state["fin_report"] = public_snapshot(pipeline.recheck_changed_input(report))
                     st.session_state["fin_human_confirm"] = False
@@ -278,7 +262,7 @@ with right:
             can_approve = report.get("can_approve") is True and not approved(report)
             if not can_approve:
                 st.caption("현재 상태에서는 승인할 수 없습니다. 근거·검산·변경 상태를 먼저 확인하세요.")
-            if st.button("직접 확인하고 승인",key="fin_approve",disabled=not(can_approve and confirmed and reason.strip()),use_container_width=True):
+            if st.button("직접 확인하고 승인",key="fin_approve",disabled=not(can_approve and confirmed and reason.strip()),width="stretch"):
                 try:
                     st.session_state["fin_report"] = public_snapshot(pipeline.approve_report(report,reason=reason,confirmed=confirmed))
                     st.rerun()

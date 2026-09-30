@@ -56,7 +56,7 @@ def build_analysis_spec(claim):
         human_confirmed=bool(getattr(claim,'analysis_spec_confirmed',False)),
     )
 
-def check_analysis_spec(spec, contract_type):
+def check_analysis_spec(spec, contract_type, method=""):
     """Return (executable, missing, unsupported).
 
     The prototype requires explicit human confirmation plus a supported missing-data policy.
@@ -64,7 +64,8 @@ def check_analysis_spec(spec, contract_type):
     the reviewer explicitly confirms that the source does not report them. This prevents the UI
     from silently inventing details while keeping the prototype usable on incomplete papers.
     """
-    if contract_type in {'DESCRIPTIVE','SCOPE'}: return True,[],[]
+    # [수정: 0 이영] 2026-09-30 22:44 KST — C03: 1표본 t는 DESCRIPTIVE 경로에서도 추론 명세·정책을 검사한다.
+    if contract_type=='SCOPE' or (contract_type=='DESCRIPTIVE' and method!='one_sample_t'): return True,[],[]
     missing=[]; unsupported=[]
     if not spec.human_confirmed: missing.append('analysis specification confirmation')
     if spec.missing_policy=='unspecified': missing.append('missing-data policy')
@@ -83,7 +84,8 @@ def check_analysis_spec(spec, contract_type):
     # [수정: 전문가6] 2026-09-25 case43
     # 종류: 통계검정추가 / 재현 방법: Bonferroni 명세가 있어도 실행 차단 / 변경 전: 전부 미지원 / 변경 후: 가족 크기 확인 시 단일 p 보정 / 왜: 원문 보정 정책 재현 / 영향: Holm·BH는 전체 p 벡터 없으면 계속 차단.
     if spec.multiplicity_policy=='bonferroni':
-        if spec.multiplicity_count<2:unsupported.append('multiplicity family size:unconfirmed')
+        # [수정: 0 이영] 2026-09-30 22:44 KST — 보정 가족 크기에 bool·소수·비양수 입력을 허용하지 않는다.
+        if type(spec.multiplicity_count) is not int or spec.multiplicity_count<2:unsupported.append('multiplicity family size:unconfirmed')
     elif spec.multiplicity_policy in {'holm','bh','fdr_bh'}:
         try: validate_multiplicity_family(spec)
         except (TypeError,ValueError): unsupported.append('multiplicity family:incomplete or invalid')

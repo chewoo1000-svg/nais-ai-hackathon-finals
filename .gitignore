@@ -32,3 +32,10 @@ __pycache__/
 /finals/evidence/packets/C05.json
 /finals/evidence/packets/C07.json
 /finals/evidence/packets/C08.json
+
+# [수정: 0 이영] 2026-10-01 00:13 KST — 내부 검증 원출력·런타임 감사 저장소를 공개 소스에서 제외한다.
+audit/
+team_data/
+runtime/
+/data/audit.db*
+/data/changes.db*

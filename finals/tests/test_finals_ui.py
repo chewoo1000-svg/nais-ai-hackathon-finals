@@ -59,8 +59,9 @@ def approve(app):
 def test_registered_cases_visible_and_unavailable_ai_keeps_manual_path(app_factory):
     app = app_factory()
     assert len(finals_cases.list_cases()) == 8
-    assert app.title[0].value == "근거관문"
-    assert any("버전 0" in item.value for item in app.caption)
+    # [수정: 0 이영] 2026-09-30 23:54 KST — 참고 UI를 적용한 실제 검산 화면 제목·조건 안내를 확인한다.
+    assert "다시 계산해 볼까요" in app.title[0].value
+    assert any("분석 조건" in item.value for item in app.caption)
     assert not app.button(key="fin_manual_load").disabled
     assert app.button(key="fin_compute").disabled
     app.radio(key="fin_mode").set_value("실시간 AI").run()

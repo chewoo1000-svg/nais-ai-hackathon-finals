@@ -75,6 +75,8 @@ class RegressionContract(BaseContract):
     outcome: str = ""
     predictors: list[str] = field(default_factory=list)
     alpha: float = .05
+    # [수정: 0 이영] 2026-09-30 22:44 KST — C09: 모형 설명변수 목록과 검산 대상 항을 분리하여 첫 변수로 오인하지 않는다.
+    target_predictor: str = ""
 
 @dataclass
 class ScopeContract(BaseContract):
@@ -110,14 +112,17 @@ def build_typed_contract(claim,dataset_name,dataset_hash):
     # When a provenance record exists it is the source of truth; legacy booleans remain only as a
     # backward-compatible fallback for older saved/test Claims.
     evidence_confirmed=is_confirmed(evidence_record) if evidence_record else bool(claim.semantic_confirmed)
-    method_confirmed=(True if ct==ContractType.DESCRIPTIVE else (is_confirmed(method_record) if method_record else bool(getattr(claim,"method_confirmed",False) or (getattr(claim,"analysis_method","") and not getattr(claim,"method_candidate","")))))
+    # [수정: 0 이영] 2026-09-30 22:44 KST — C01/C03: 선택 방법을 단일화하고 1표본 t에도 추론 확인 정책을 적용한다.
+    method=claim.analysis_method or getattr(claim,"method_candidate","") or claim.aggregation
+    inferential=ct in {ContractType.COMPARATIVE,ContractType.ASSOCIATION,ContractType.REGRESSION} or method=="one_sample_t"
+    method_confirmed=(True if not inferential else (is_confirmed(method_record) if method_record else bool(getattr(claim,"method_confirmed",False) or (getattr(claim,"analysis_method","") and not getattr(claim,"method_candidate","")))))
     common=dict(claim_id=claim.claim_id,contract_type=ct,source_page=claim.source_page,
                 source_quote=claim.source_quote or claim.text,dataset_name=dataset_name,
                 dataset_hash=dataset_hash,filters=list(claim.filters),
-                human_confirmed=evidence_confirmed,method=claim.analysis_method or getattr(claim,"method_candidate","") or claim.aggregation,
+                human_confirmed=evidence_confirmed,method=method,
                 method_confirmed=method_confirmed,
                 missing_policy=getattr(claim,"missing_policy","unspecified"),
-                missing_policy_confirmed=getattr(claim,"missing_policy_confirmed",False) if ct!=ContractType.DESCRIPTIVE else True,
+                missing_policy_confirmed=getattr(claim,"missing_policy_confirmed",False) if inferential else True,
                 analysis_spec={
                     'population':getattr(claim,'analysis_population','unspecified'),
                     'estimand':getattr(claim,'estimand','unspecified'),
@@ -160,8 +165,10 @@ def build_typed_contract(claim,dataset_name,dataset_hash):
     if ct==ContractType.ASSOCIATION:
         return AssociationContract(**common,x=claim.x_column or claim.decomposition.get("x_hint","") or "",y=claim.column or "",alpha=claim.alpha)
     if ct==ContractType.REGRESSION:
-        predictors=claim.decomposition.get('predictor_hints',[]) or ([claim.x_column] if claim.x_column else [])
-        return RegressionContract(**common,outcome=claim.column or "",predictors=predictors,alpha=claim.alpha)
+        # [수정: 0 이영] 2026-09-30 22:44 KST — C09: 선택된 x_column을 검산 대상으로 보존하고 다중 항의 자동 첫 선택을 막는다.
+        predictors=list(claim.decomposition.get('predictor_hints',[]) or ([claim.x_column] if claim.x_column else []))
+        target=claim.x_column or claim.decomposition.get('x_hint','') or (predictors[0] if len(predictors)==1 else '')
+        return RegressionContract(**common,outcome=claim.column or "",predictors=predictors,alpha=claim.alpha,target_predictor=target)
     if ct==ContractType.COMPARATIVE:
         return ComparativeContract(**common,outcome=claim.column or "",group_column=claim.group_column or "",group_a=claim.group_a or "",group_b=claim.group_b or "",alpha=claim.alpha)
     # [수정: 전문가5] 2026-09-25 case40
@@ -171,7 +178,7 @@ def build_typed_contract(claim,dataset_name,dataset_hash):
     # 변경 후: 두 값을 계약에 명시하고 누락 가중치 열은 차단한다.
     # 왜: 원문→명세→실행의 수치 의미를 일치시킨다.
     # 영향: 기술통계 계약에 두 필드가 추가된다.
-    return DescriptiveContract(**common,variable=claim.column or "",aggregation=claim.aggregation,tolerance=claim.tolerance,weight_column=claim.weight_column,success_value=claim.success_value,reference_value=float(getattr(claim,"mu0",0.0)),alpha=claim.alpha)
+    return DescriptiveContract(**common,variable=claim.column or "",aggregation=method,tolerance=claim.tolerance,weight_column=claim.weight_column,success_value=claim.success_value,reference_value=float(getattr(claim,"mu0",0.0)),alpha=claim.alpha)
 
 
 # [수정: 전문가5/6] 2026-09-26 case64
@@ -181,11 +188,15 @@ def check_evidence_sufficiency(contract,df) -> ContractCheck:
     """Fail closed: incomplete evidence means BLOCKED, never a guessed calculation."""
     missing=[]
     cols=set(df.columns)
+    # [수정: 0 이영] 2026-09-30 22:44 KST — C03: 계약 유형이 기술통계여도 1표본 t는 추론 확인을 생략하지 않는다.
+    inferential=isinstance(contract,(ComparativeContract,AssociationContract,RegressionContract)) or (isinstance(contract,DescriptiveContract) and contract.method=="one_sample_t")
     # [수정: 재현성/Fail-closed] 2026-09-28 case72
     # 통계 명세 자체가 유효하지 않으면 계산하지 않는다. NaN/Inf/범위 밖 alpha·tolerance를
     # 결과 충돌이나 유의성으로 해석하면 같은 입력을 다른 실행환경에서 재현할 수 없다.
     import math
     if isinstance(contract,DescriptiveContract):
+        # [수정: 0 이영] 2026-09-30 22:44 KST — C01: 수동 계약의 method/aggregation 모순도 계산 전에 차단한다.
+        if contract.method and contract.method!=contract.aggregation: missing.append("consistent descriptive method")
         try: tol=float(contract.tolerance)
         except (TypeError,ValueError,OverflowError): tol=math.nan
         if not math.isfinite(tol) or tol < 0: missing.append("valid tolerance")
@@ -214,9 +225,9 @@ def check_evidence_sufficiency(contract,df) -> ContractCheck:
     # case24 SAFETY CHANGE — WHY: case23 always executed inferential claims with complete-case deletion,
     # even when the paper's missing-data policy was unknown. That can reproduce the wrong estimand.
     # Inferential contracts now fail closed until a human explicitly confirms the analysis policy.
-    if not isinstance(contract,(DescriptiveContract,ScopeContract)) and not contract.method_confirmed:
+    if inferential and not contract.method_confirmed:
         missing.append("method confirmation")
-    if not isinstance(contract,(DescriptiveContract,ScopeContract)) and not contract.missing_policy_confirmed:
+    if inferential and not contract.missing_policy_confirmed:
         missing.append("missing-data policy confirmation")
     elif isinstance(contract,ComparativeContract):
         if not contract.outcome or contract.outcome not in cols: missing.append("outcome")
@@ -235,7 +246,10 @@ def check_evidence_sufficiency(contract,df) -> ContractCheck:
     elif isinstance(contract,RegressionContract):
         if not contract.outcome or contract.outcome not in cols: missing.append("outcome")
         if not contract.predictors: missing.append("predictor")
-        else:
+        # [수정: 0 이영] 2026-09-30 22:44 KST — C09: 다중회귀는 명시된 대상 항만 검산하며 목록 밖 대상은 차단한다.
+        target=contract.target_predictor or (contract.predictors[0] if len(contract.predictors)==1 else "")
+        if not target or target not in contract.predictors: missing.append("regression target predictor")
+        if contract.predictors:
             for p in contract.predictors:
                 if p not in cols: missing.append(f"predictor:{p}")
     elif isinstance(contract,ScopeContract):

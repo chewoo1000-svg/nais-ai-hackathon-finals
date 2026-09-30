@@ -8,7 +8,7 @@ when a human has explicitly completed the contract. Scope execution never claims
 it only reports whether the required evidence cells exist.
 """
 from __future__ import annotations
-from .analysis_spec import check_analysis_spec, validate_multiplicity_family
+from .analysis_spec import AnalysisSpecification, check_analysis_spec, validate_multiplicity_family
 import itertools
 import math
 import pandas as pd
@@ -122,10 +122,13 @@ def _execute_deterministic(contract,df):
     if isinstance(contract,RegressionContract):
         if len(contract.predictors)>1:
             res=multivariable_regression(fdf,contract.outcome,contract.predictors,contract.method)
-            first=contract.predictors[0];res['estimate']=res['terms'][first]['estimate'];res['p_value']=res['terms'][first]['p_value'];res['ci95']=res['terms'][first]['ci95_beta']
-            if 'odds_ratio' in res['terms'][first]:res['odds_ratio']=res['terms'][first]['odds_ratio']
+            # [수정: 0 이영] 2026-09-30 22:44 KST — C09: 첫 설명변수 대신 계약에 결속된 검산 대상 항을 대표 수치로 전달한다.
+            target=contract.target_predictor
+            res['estimate']=res['terms'][target]['estimate'];res['p_value']=res['terms'][target]['p_value'];res['ci95']=res['terms'][target]['ci95_beta']
+            if 'odds_ratio' in res['terms'][target]:res['odds_ratio']=res['terms'][target]['odds_ratio']
         else:
             res=inferential(fdf,contract.method,contract.outcome,"","","",contract.predictors[0])
+        res["target_predictor"]=contract.target_predictor or contract.predictors[0]
         res["diagnostics"]=regression_diagnostics(fdf,contract.outcome,contract.predictors,contract.method)
         res['assumption_alerts']=[res['diagnostics']['diagnostic_error']] if 'diagnostic_error' in res['diagnostics'] else []
         return {"state":"EXECUTED","reason":"회귀 재분석 완료","result":res,"rows_used":res.get("n",len(fdf))}
@@ -148,8 +151,27 @@ def execute_contract(contract, df, analysis_spec=None):
     CHANGE: analysis-spec gating and deterministic execution now live here.
     REGRESSION: tests/test_case28.py::test_canonical_executor_has_no_version_delegate
     """
+    # [수정: 0 이영] 2026-09-30 22:44 KST — C02/C03: 명세 생략 우회를 막고 별도 명세는 계약 snapshot과 대조한다.
+    inferential=isinstance(contract,(ComparativeContract,AssociationContract,RegressionContract)) or (isinstance(contract,DescriptiveContract) and contract.method=="one_sample_t")
+    if inferential:
+        try:
+            embedded=AnalysisSpecification(**contract.analysis_spec)
+            if analysis_spec is None:
+                analysis_spec=embedded
+            elif not isinstance(analysis_spec,AnalysisSpecification):
+                analysis_spec=AnalysisSpecification(**analysis_spec.to_dict())
+            if contract.analysis_spec and analysis_spec.to_dict()!=embedded.to_dict():
+                return {"state":"BLOCKED","reason":"분석 명세와 계약 snapshot 불일치","missing":["matching analysis specification"],"result":None}
+            if analysis_spec.missing_policy!=contract.missing_policy:
+                return {"state":"BLOCKED","reason":"결측 정책과 계약 불일치","missing":["matching missing-data policy"],"result":None}
+        except (TypeError,ValueError,AttributeError):
+            return {"state":"BLOCKED","reason":"분석 명세 형식 오류","missing":["valid analysis specification"],"result":None}
     if analysis_spec is not None:
-        ok, missing, unsupported = check_analysis_spec(analysis_spec, contract.contract_type.value)
+        # [수정: 0 이영] 2026-09-30 22:50 KST — C02: 잘못된 명세 필드형도 예외 유출 없이 계산 전에 차단한다.
+        try:
+            ok, missing, unsupported = check_analysis_spec(analysis_spec, contract.contract_type.value, contract.method)
+        except (TypeError,ValueError,AttributeError,OverflowError):
+            return {"state":"BLOCKED","reason":"분석 명세 필드 오류","missing":["valid analysis specification"],"result":None}
         if not ok:
             return {"state":"BLOCKED","reason":"분석 명세 미완성","missing":missing,"unsupported":unsupported,"result":None}
         # [수정: 전문가6] 2026-09-25 case43
@@ -178,7 +200,8 @@ def execute_contract(contract, df, analysis_spec=None):
                 try:finite=math.isfinite(float(run['result'][field]))
                 except (TypeError,ValueError,OverflowError):finite=False
                 if not finite:return {'state':'BLOCKED','reason':f'추론 통계량 {field}을(를) 유한하게 계산할 수 없습니다.','missing':[field],'result':None}
-    if analysis_spec is not None and run['state']=='EXECUTED' and isinstance(contract,(ComparativeContract,AssociationContract,RegressionContract)):
+    # [수정: 0 이영] 2026-09-30 22:44 KST — C03: 1표본 t를 포함한 모든 추론 결과에 확인된 다중비교 정책을 적용한다.
+    if analysis_spec is not None and run['state']=='EXECUTED' and inferential:
         # [작성/수정: 전문가5·6] 2026-09-26 case62
         # 무엇을: 대상 p 불일치도 fail-closed / 검증: test_executor_family_target_mismatch_blocks.
         try: run['result']=apply_multiplicity(run['result'],analysis_spec)
