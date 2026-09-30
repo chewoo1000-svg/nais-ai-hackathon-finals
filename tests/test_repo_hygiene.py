@@ -55,6 +55,12 @@ class RepoHygieneTest(unittest.TestCase):
         self.assertEqual(scan({"a.md": "name" + "@" + "example.com\n"}), [])
         self.assertEqual(scan({"a.py": "fake = 'private-contact" + "@" + "example.test'\n"}), [])   # 예약 도메인(RFC 2606)
 
+    def test_reserved_tld_fixtures_and_url_userinfo_are_not_emails(self):
+        # [수정: 0 이영 · Claude] 2026-10-01 01:48 KST — 개인정보 제거 시험이 쓰는 가짜 주소(.invalid)와 SSRF 방어 시험의 URL 입력을 오탐하지 않는다.
+        fixture = 'FAKE = "private' + "@" + 'example.invalid"\nURL = "https://arxiv.org' + "@" + 'evil.example/abs/1"\n'
+        self.assertEqual(scan({"t.py": fixture}), [])
+        self.assertTrue(any("이메일" in f for f in scan({"a.md": "문의 kim" + "@" + "lab.ac.kr\n"})))
+
     def test_broken_and_duplicate_key_json_is_flagged(self):
         findings = scan({"a.json": '{"a": 1, "a": 2}', "b.json": "{not json"})
         self.assertEqual(sorted(f.split(":")[0] for f in findings), ["a.json", "b.json"])
@@ -63,6 +69,14 @@ class RepoHygieneTest(unittest.TestCase):
         findings = scan({"requirements.txt": "a==1\n", "finals/requirements.txt": "a==2\n", "finals/.streamlit/config.toml": "[server]\n"})
         self.assertTrue(any("requirements" in f for f in findings))
         self.assertTrue(any("루트 .streamlit" in f for f in findings))
+
+    def test_streamlit_expression_statements_are_flagged_but_calls_and_docstrings_are_not(self):
+        # [수정: 0 이영 · Claude] 2026-10-01 01:37 KST — 삼항식 문장이 매직으로 화면에 찍힌 배포 결함의 회귀 시험.
+        bad = "import streamlit as st\nx = 1\nst.write(x) if x else st.caption('a')\n"
+        good = '"""모듈 독스트링은 화면에 나가지 않는다."""\nimport streamlit as st\nx = 1\nst.write(x)\nif x:\n    st.caption("a")\n'
+        self.assertTrue(any("Streamlit 매직" in f for f in scan({"page.py": bad})))
+        self.assertEqual(scan({"page.py": good}), [])
+        self.assertEqual(scan({"plain.py": "x = 1\nx if x else 2\n"}), [])   # Streamlit을 쓰지 않는 파일은 대상 아님
 
     def test_protected_data_and_sealed_inputs_are_not_touched(self):
         self.assertEqual(scan({"data/raw.csv": b"a\r\nb\r\n", "finals/evidence/inputs/x.txt": b"a@" + b"univ.ac.kr\r\n"}), [])
