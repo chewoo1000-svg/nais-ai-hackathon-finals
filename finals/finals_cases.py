@@ -7,6 +7,7 @@ import io
 import json
 from pathlib import Path
 import sys
+import unicodedata
 
 import pandas as pd
 
@@ -39,6 +40,20 @@ def _sha(raw: bytes) -> str:
 
 def _canonical(value) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
+
+
+_PUNCTUATION = str.maketrans({"‘": "'", "’": "'", "“": '"', "”": '"', "–": "-", "—": "-", "−": "-"})
+
+
+def text_key(value) -> str:
+    """문장 비교용 정규형: 유니코드 NFKC, 따옴표·대시 통일, 연속 공백·줄바꿈을 한 칸으로. 숫자·구조 값은 표준 JSON 그대로.
+
+    # [수정: 0 이영 · Claude] 2026-10-01 00:33 KST — 인용문·주장 문장을 정확 일치로 비교하면 모델이 되풀이하면서 바꾸는 공백·따옴표·한글 정규형(NFC/NFD),
+    # PDF 줄바꿈 때문에 내용이 같아도 막혔다. 내용이 다르면 여전히 다른 키가 된다. 열 이름·필터 같은 구조 값에는 쓰지 않는다(정확 일치 유지).
+    """
+    if isinstance(value, str):
+        return " ".join(unicodedata.normalize("NFKC", value).translate(_PUNCTUATION).split())
+    return _canonical(value)
 
 
 def _safe_path(relative: str) -> Path:
@@ -111,7 +126,7 @@ def load_case(case_id: str) -> dict:
         item.get("source_kind") == "article_extract"
         and _sha(source) == item["source_sha256"]
         and _sha(original) == item["data_sha256"]
-        and item["source_quote"] in source.decode("utf-8", errors="replace")
+        and text_key(item["source_quote"]) in text_key(source.decode("utf-8", errors="replace"))
         and not item.get("evidence_status", "").startswith("BLOCKED")
     )
     return {

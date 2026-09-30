@@ -23,7 +23,7 @@ REPO_ROOT = AGENT_ROOT.parent
 for code_path in (REPO_ROOT, AGENT_ROOT):
     if str(code_path) not in sys.path:
         sys.path.insert(0, str(code_path))
-from finals_cases import load_case, list_replays
+from finals_cases import load_case, list_replays, text_key
 # [수정: 0 이영 · Claude] 2026-09-30 23:56 KST — 공급자·모델 이름은 finals_provider 한 곳에서만 정한다(영수증 검사가 별도 상수를 들고 있어 모델을 바꾸면 모든 응답이 MODEL_RECEIPT_INVALID가 됐다).
 from finals_provider import MODEL, PROVIDER
 from core.models import Claim, Status
@@ -131,8 +131,10 @@ def _validation(case: dict, proposal: dict) -> dict:
         if not matches:
             result["errors"].append("CONDITION_MISMATCH_" + field.upper())
     # 수정 이유: AI가 보고값·원문·허용오차를 바꿔 일치를 만드는 경로를 차단한다.
+    # [수정: 0 이영 · Claude] 2026-10-01 00:33 KST — 문장(인용·위치·주장)은 공백·따옴표·유니코드 정규형 차이를 무시하고 내용으로 비교한다(text_key).
+    # 숫자·허용오차는 이전과 같은 표준 JSON 비교이고, 열·필터·방법 같은 구조 조건은 위 여섯 조건 검사에서 정확 일치를 유지한다.
     for field in ("reported_value", "source_quote", "source_location", "claim_text", "tolerance"):
-        if _canonical(proposal[field]) != _canonical(expected[field]):
+        if text_key(proposal[field]) != text_key(expected[field]):
             result["errors"].append("REGISTERED_FIELD_MISMATCH_" + field.upper())
     if not case["source_gate"]:
         result["errors"].append("ORIGINAL_SOURCE_UNAVAILABLE_OR_HASH_MISMATCH")
