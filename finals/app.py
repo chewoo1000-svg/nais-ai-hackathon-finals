@@ -243,7 +243,11 @@ with right:
             critique = report.get("critique")
             if critique:
                 with st.expander("검토 의견",expanded=True):
-                    st.json(public_snapshot(critique)) if isinstance(critique,(dict,list)) else st.write(str(critique))
+                    # [수정: 0 이영] 2026-10-01 00:52 KST — 검토 의견 호출의 반환 객체가 화면에 출력되는 현상을 방지한다.
+                    if isinstance(critique, (dict, list)):
+                        st.json(public_snapshot(critique))
+                    else:
+                        st.write(str(critique))
             if st.button("자료 변경 후 재검산",key="fin_change",width="stretch"):
                 try:
                     st.session_state["fin_report"] = public_snapshot(pipeline.recheck_changed_input(report))
