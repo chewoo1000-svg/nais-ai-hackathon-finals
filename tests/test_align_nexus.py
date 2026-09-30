@@ -14,9 +14,9 @@ from pathlib import Path
 
 from evidence_gate import evaluate
 from evidence_gate.__main__ import main
-from evidence_gate.align import diagnose
+from evidence_gate.align import diagnose, reference_ids_sha256
 from evidence_gate.nexus import NexusError, tip_labels
-from evidence_gate.spec import empty_spec
+from evidence_gate.spec import empty_spec, spec_sha256
 
 APPROVE = {"approver": "연구자", "basis": "원자료 표기 확인"}
 NEXUS = """#NEXUS
@@ -37,6 +37,13 @@ def spec_for(data):
                 data_id_column="Species", reference_ids_source="tree",
                 source_location={"source_id": "SYN", "locator": "p. 1", "quote": "시험용 합성 문장"})
     return spec
+
+
+def bound_approval(data, reference, **fields):
+    # [1 이채우] 2026-10-01T01:03:10+09:00 — 시험 승인도 세 입력에 명시적으로 결속한다.
+    return dict(APPROVE, data_sha256=hashlib.sha256(data).hexdigest(),
+                reference_sha256=reference_ids_sha256(reference),
+                spec_sha256=spec_sha256(spec_for(data)), **fields)
 
 
 class DiagnoseTest(unittest.TestCase):
@@ -74,24 +81,26 @@ class NormalizeApprovalTest(unittest.TestCase):
         self.assertIn("표기 차이 후보", result["next_action"])
 
     def test_approved_pair_applies(self):
-        approvals = {"normalize": dict(APPROVE, data_sha256=hashlib.sha256(self.data).hexdigest(), reference_sha256=hashlib.sha256("\n".join(self.reference).encode()).hexdigest(), pairs=[{"from": "Homo sapiens", "to": "Homo_sapiens"}])}
+        approvals = {"normalize": bound_approval(self.data, self.reference,
+                     pairs=[{"from": "Homo sapiens", "to": "Homo_sapiens"}])}
         result = evaluate(spec_for(self.data), self.data, reference_ids=self.reference, approvals=approvals)
         self.assertEqual((result["verdict"], result["reason_code"]), ("MATCH", "ROWS_ALIGNED"))
         self.assertEqual(result["approvals"][0]["pairs"][0]["rule"], "space_to_underscore")
         self.assertEqual(result["details"]["before_normalization"]["status"], "MEMBERSHIP_MISMATCH")
 
     def test_unoffered_pair_is_rejected(self):
-        approvals = {"normalize": dict(APPROVE, data_sha256=hashlib.sha256(self.data).hexdigest(), reference_sha256=hashlib.sha256("\n".join(self.reference).encode()).hexdigest(), pairs=[{"from": "Homo sapiens", "to": "Pan_paniscus"}])}
+        approvals = {"normalize": bound_approval(self.data, self.reference,
+                     pairs=[{"from": "Homo sapiens", "to": "Pan_paniscus"}])}
         result = evaluate(spec_for(self.data), self.data, reference_ids=self.reference, approvals=approvals)
         self.assertEqual((result["verdict"], result["reason_code"]), ("BLOCK", "APPROVAL_NOT_APPLICABLE"))
 
     def test_approval_bound_to_other_inputs_is_stale(self):
         data = b"Species,v\nB,1\nA,2\n"
-        approvals = {"reorder": dict(APPROVE, data_sha256="0" * 64)}
+        approvals = {"reorder": dict(bound_approval(data, ["A", "B"]), data_sha256="0" * 64)}
         result = evaluate(spec_for(data), data, reference_ids=["A", "B"], approvals=approvals)
         self.assertEqual((result["verdict"], result["reason_code"]), ("BLOCK", "APPROVAL_STALE"))
         ok = evaluate(spec_for(data), data, reference_ids=["A", "B"],
-                      approvals={"reorder": dict(APPROVE, data_sha256=hashlib.sha256(data).hexdigest(), reference_sha256=hashlib.sha256(b"A\nB").hexdigest())})
+                      approvals={"reorder": bound_approval(data, ["A", "B"])})
         self.assertEqual(ok["verdict"], "MATCH")
         self.assertEqual([r["data_row"] for r in ok["alignment_table"]], [2, 1])
 
@@ -134,7 +143,7 @@ A2_DIR = os.environ.get("EVIDENCE_GATE_A2_DIR")
 class A2AuthorFilesTest(unittest.TestCase):
     def test_five_states(self):
         from evidence_gate import demo_a2
-        states = demo_a2.run(demo_a2.fetch(A2_DIR, download=False), "시험")
+        states = demo_a2.run(demo_a2.fetch(A2_DIR, download=False), "시험", approve_reorder=True)
         self.assertEqual([(s["verdict"], s["reason_code"]) for s in states], [
             ("BLOCK", "ROW_ORDER_REORDER_REQUIRED"), ("MATCH", "ROWS_REORDERED_WITH_APPROVAL"),
             ("BLOCK", "ROW_MEMBERSHIP_MISMATCH"), ("BLOCK", "ROW_MEMBERSHIP_MISMATCH"), ("BLOCK", "STALE_DATA")])

@@ -14,9 +14,10 @@ from contextlib import redirect_stdout
 from pathlib import Path
 
 from evidence_gate.__main__ import main
+from evidence_gate.align import reference_ids_sha256
 from evidence_gate.compute import GateError, mean, ols
 from evidence_gate.gate import evaluate
-from evidence_gate.spec import empty_spec, validate
+from evidence_gate.spec import empty_spec, validate, spec_sha256
 
 
 def spec_for(data, method, **fields):
@@ -104,17 +105,18 @@ class ApprovalRecordTest(unittest.TestCase):
     def spec(self):
         return spec_for(self.DATA, "row_alignment", data_id_column="Species", reference_ids_source="tree labels")
 
-    # [수정: 3 조지현] 2026-10-01T01:21:00+09:00 — 기존 미결속 허용 시험을 안전한 차단 계약으로 교체. 정상·변경 시험은 유지.
-    def test_unbound_approval_is_blocked(self):
+    def test_unbound_approval_is_blocked_without_granting_approval(self):
+        # [1 이채우] 2026-10-01T01:21:52+09:00 — 세 지문 필수 정책에 맞춰 미결속 승인의 기대값을 차단으로 갱신한다.
         result = evaluate(self.spec(), self.DATA, reference_ids=["A", "B", "C"],
                           approvals={"reorder": {"approver": "연구자", "basis": "종 이름 기준"}})
         self.assertEqual((result["verdict"], result["reason_code"]), ("BLOCK", "APPROVAL_UNBOUND"))
         self.assertNotIn("approvals", result)
+        self.assertEqual(sorted(result["details"]["missing"]), ["data_sha256", "reference_sha256", "spec_sha256"])
 
     def test_partially_bound_approval_is_blocked(self):
         ref = ["A", "B", "C"]
         hashes = {"data_sha256": hashlib.sha256(self.DATA).hexdigest(),
-                  "reference_sha256": hashlib.sha256("\n".join(ref).encode()).hexdigest()}
+                  "reference_sha256": reference_ids_sha256(ref), "spec_sha256": spec_sha256(self.spec())}
         for missing in hashes:
             approval = dict(approver="연구자", basis="종 이름 기준", **hashes)
             approval.pop(missing)
@@ -124,8 +126,9 @@ class ApprovalRecordTest(unittest.TestCase):
     def test_bound_approval_is_recorded_with_its_own_hashes_and_expires_when_reference_changes(self):
         data_sha = hashlib.sha256(self.DATA).hexdigest()
         ref = ["A", "B", "C"]
-        ref_sha = hashlib.sha256("\n".join(ref).encode("utf-8")).hexdigest()
-        approval = {"approver": "연구자", "basis": "종 이름 기준", "data_sha256": data_sha, "reference_sha256": ref_sha}
+        ref_sha = reference_ids_sha256(ref)
+        approval = {"approver": "연구자", "basis": "종 이름 기준", "data_sha256": data_sha,
+                    "reference_sha256": ref_sha, "spec_sha256": spec_sha256(self.spec())}
         ok = evaluate(self.spec(), self.DATA, reference_ids=ref, approvals={"reorder": approval})
         self.assertEqual((ok["verdict"], ok["approvals"][0]["bound_reference_sha256"], ok["approvals"][0]["unbound_fields"]),
                          ("MATCH", ref_sha, []))

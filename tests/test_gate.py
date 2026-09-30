@@ -13,9 +13,10 @@ from contextlib import redirect_stdout
 from pathlib import Path
 
 from evidence_gate import evaluate
+from evidence_gate.align import reference_ids_sha256
 from evidence_gate.__main__ import main
 from evidence_gate.record import append_record, read_records, reusable_result
-from evidence_gate.spec import empty_spec
+from evidence_gate.spec import empty_spec, spec_sha256
 
 ROOT = Path(__file__).resolve().parents[1]
 PENGUINS = (ROOT / "evidence_gate" / "fixtures" / "penguins_raw.csv").read_bytes()
@@ -134,7 +135,9 @@ class SyntheticMethodsTest(unittest.TestCase):
         half = evaluate(spec, data, reference_ids=["A", "B", "C"], approvals={"reorder": {"approver": "연구자"}})
         self.assertEqual(half["verdict"], "BLOCK")
         approved = evaluate(spec, data, reference_ids=["A", "B", "C"],
-                            approvals={"reorder": {"approver": "연구자", "basis": "종 이름 기준", "data_sha256": sha(data), "reference_sha256": sha(b"A\nB\nC")}})
+                            approvals={"reorder": {"approver": "연구자", "basis": "종 이름 기준",
+                                       "data_sha256": sha(data), "spec_sha256": spec_sha256(spec),
+                                       "reference_sha256": reference_ids_sha256(["A", "B", "C"])}})
         self.assertEqual((approved["verdict"], approved["reorder_indices"]), ("MATCH", [1, 0, 2]))
         membership = evaluate(spec, data, reference_ids=["A", "B", "D"])
         self.assertEqual(membership["reason_code"], "ROW_MEMBERSHIP_MISMATCH")
