@@ -5,12 +5,22 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
+
 RULES = (
     ("trim", str.strip),
     ("space_to_underscore", lambda v: v.strip().replace(" ", "_")),
     ("casefold", lambda v: v.strip().casefold()),
     ("space_to_underscore+casefold", lambda v: v.strip().replace(" ", "_").casefold()),
 )
+
+
+def reference_ids_sha256(reference_ids):
+    """순서와 식별자 경계를 보존한 정규 JSON 배열의 지문."""
+    # [1 이채우] 2026-10-01T01:11:31+09:00 — 식별자 안 줄바꿈도 이스케이프해 구분자 결합 충돌을 막는다.
+    raw = json.dumps(list(reference_ids), ensure_ascii=False, separators=(",", ":"), allow_nan=False)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 def _duplicates(values):

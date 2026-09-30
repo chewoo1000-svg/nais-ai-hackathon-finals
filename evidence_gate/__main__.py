@@ -12,8 +12,10 @@ import sys
 from pathlib import Path
 
 from .gate import evaluate
+from .align import reference_ids_sha256
 from .nexus import NexusError, tip_labels
 from .record import append_record, now_kst, reusable_result
+from .spec import spec_sha256
 
 EXIT = {"MATCH": 0, "MISMATCH": 2, "NEEDS_REVIEW": 2, "BLOCK": 3}
 
@@ -75,10 +77,12 @@ def main(argv=None):
     if args.approve_reorder or args.approve_normalize:
         if not (args.approver and args.approval_basis):
             parser.error("승인에는 --approver와 --approval-basis가 모두 필요")
+        if reference_ids is None:
+            parser.error("행 대응 승인에는 --reference-ids 또는 --reference-nexus가 필요")
+        # [1 이채우] 2026-10-01T01:03:10+09:00 — 사람이 직접 선택한 승인을 현재 세 입력에 고정한다.
         common = {"approver": args.approver, "basis": args.approval_basis, "approved_at_kst": now_kst(),
-                  "data_sha256": hashlib.sha256(data).hexdigest()}
-        if reference_ids is not None:  # [수정: 0 이영 · Claude] 2026-09-30 23:51 KST — 이 실행에서 만든 승인을 이 자료·기준 목록에 묶는다(gate가 쓰는 정의와 같음)
-            common["reference_sha256"] = hashlib.sha256("\n".join(reference_ids).encode("utf-8")).hexdigest()
+                  "data_sha256": hashlib.sha256(data).hexdigest(), "spec_sha256": spec_sha256(spec),
+                  "reference_sha256": reference_ids_sha256(reference_ids)}
         if args.approve_reorder:
             approvals["reorder"] = dict(common)
         if args.approve_normalize:

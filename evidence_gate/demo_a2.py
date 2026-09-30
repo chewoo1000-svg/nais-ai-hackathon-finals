@@ -1,6 +1,6 @@
 """사례 A2 시연: 저자 공개 파일로 행 대응 차단 → 사람 승인 재정렬 → 기록.
 
-python -m evidence_gate.demo_a2 --workdir 작업폴더 [--record 기록.jsonl] [--approver 이름]
+python -m evidence_gate.demo_a2 --workdir 작업폴더 [--record 기록.jsonl] [--approve-reorder --approver 이름]
 
 저자 저장소에 라이선스 파일이 없어 자료는 저장소에 넣지 않는다. 실행할 때 고정 커밋에서 받아
 작업 폴더에만 두고, 전체 SHA-256이 다르면 멈춘다. 상태 3~5의 변형은 메모리 사본에서만 만든다.
@@ -16,8 +16,10 @@ import urllib.request
 from pathlib import Path
 
 from .gate import evaluate
+from .align import reference_ids_sha256
 from .nexus import tip_labels
 from .record import append_record, now_kst, reusable_result
+from .spec import spec_sha256
 
 ROOT = Path(__file__).resolve().parent
 COMMIT = "0217d9d103fe5829329e7abab3df08f11c6b88ac"
@@ -57,7 +59,9 @@ def _without_line(data, predicate):
     return "\n".join([lines[0]] + [l for l in lines[1:] if not predicate(l)]).encode("utf-8")
 
 
-def run(blobs, approver, record=None):
+def run(blobs, approver=None, record=None, *, approve_reorder=False):
+    if approve_reorder and not (isinstance(approver, str) and approver.strip()):
+        raise ValueError("직접 재정렬 승인을 선택한 경우 승인자 이름이 필요함")
     spec = json.loads((ROOT / "examples" / "a2_primate_alignment.spec.json").read_text(encoding="utf-8"))
     data, tree = blobs["S5-primdfall.csv"], blobs["treeall.nex"]
     reference = tip_labels(tree.decode("utf-8"))
@@ -76,11 +80,14 @@ def run(blobs, approver, record=None):
 
     step("1_원본_그대로", spec, data)
     first = reference[0]
-    approval = {"approver": approver, "basis": "Species 열 이름 기준 재정렬", "approved_at_kst": now_kst(),
-                "data_sha256": spec["data_fingerprint"],
-                # [수정: 0 이영 · Claude] 2026-09-30 23:51 KST — 시연 승인도 기준 목록 지문에 묶어 기준이 바뀌면 이전 승인을 쓰지 못하게 한다.
-                "reference_sha256": hashlib.sha256("\n".join(reference).encode("utf-8")).hexdigest()}
-    step("2_사람_승인_재정렬", spec, data, {"reorder": approval})
+    # [1 이채우] 2026-10-01T01:03:10+09:00 — 시연 실행만으로 승인을 만들지 않으며 직접 선택한 경우에만 결속한다.
+    approvals = {}
+    if approve_reorder:
+        approval = {"approver": approver, "basis": "Species 열 이름 기준 재정렬", "approved_at_kst": now_kst(),
+                    "data_sha256": hashlib.sha256(data).hexdigest(), "spec_sha256": spec_sha256(spec),
+                    "reference_sha256": reference_ids_sha256(reference)}
+        approvals["reorder"] = approval
+    step("2_사람_승인_재정렬" if approve_reorder else "2_사람_승인_미선택", spec, data, approvals)
 
     dropped = _without_line(data, lambda line: line.startswith(first + ","))
     step("3_합성_한종_삭제", dict(spec, data_fingerprint=hashlib.sha256(dropped).hexdigest()), dropped)
@@ -88,7 +95,7 @@ def run(blobs, approver, record=None):
     duplicated = data.rstrip(b"\n") + b"\n" + duplicate_line.encode("utf-8")
     step("4_합성_한종_복제", dict(spec, data_fingerprint=hashlib.sha256(duplicated).hexdigest()), duplicated)
     changed = data.replace(b"\n", b"\r\n")
-    step("5_자료_바이트_변경_뒤_이전_승인", spec, changed, {"reorder": approval})
+    step("5_자료_바이트_변경_뒤_이전_승인", spec, changed, approvals)
     return states
 
 
@@ -113,10 +120,13 @@ def main(argv=None):
     parser = argparse.ArgumentParser(prog="evidence_gate.demo_a2")
     parser.add_argument("--workdir", required=True, type=Path, help="저자 파일을 받을 폴더(저장소 밖 권장)")
     parser.add_argument("--record", type=Path, help="판정 기록 JSONL(추가만)")
-    parser.add_argument("--approver", default="시연 연구자", help="상태 2 재정렬 승인자 이름")
+    parser.add_argument("--approve-reorder", action="store_true", help="상태 2의 식별자 기준 재정렬을 사람이 직접 승인")
+    parser.add_argument("--approver", help="상태 2 재정렬 승인자 이름")
     parser.add_argument("--json", action="store_true", help="전체 결과 JSON 출력")
     args = parser.parse_args(argv)
-    states = run(fetch(args.workdir), args.approver, args.record)
+    if args.approve_reorder and not (args.approver and args.approver.strip()):
+        parser.error("--approve-reorder에는 --approver 이름이 필요")
+    states = run(fetch(args.workdir), args.approver, args.record, approve_reorder=args.approve_reorder)
     print(json.dumps(states, ensure_ascii=False, indent=2) if args.json else NOTICE + "\n" + summary(states))
     return 0
 

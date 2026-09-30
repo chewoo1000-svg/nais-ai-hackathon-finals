@@ -101,26 +101,31 @@ def _ols(spec, data_sha, fit, info):
                    tolerance=tolerance, details=info)
 
 
-def _approval(approvals, kind, data_sha, reference_sha):
-    """승인자·근거와 두 입력 지문이 모두 있고 현재 입력과 같을 때만 유효."""
-    approval = approvals.get(kind)
-    if not (isinstance(approval, dict) and approval.get("approver") and approval.get("basis")):
+def _approval(approvals, kind, data_sha, reference_sha, spec_sha):
+    """명시적으로 받은 승인만 자료·기준 식별자·명세에 결속해 확인한다."""
+    if kind not in approvals:
         return None
-    for key, current in (("data_sha256", data_sha), ("reference_sha256", reference_sha)):
-        if approval.get(key) not in (None, current):
+    approval = approvals[kind]
+    if not (isinstance(approval, dict)
+            and all(isinstance(approval.get(key), str) and approval[key].strip()
+                    for key in ("approver", "basis"))):
+        raise GateError("APPROVAL_INVALID", "승인자와 승인 근거가 모두 필요함", {"approval": kind})
+    # [1 이채우] 2026-10-01T01:03:10+09:00 — 지문 없는 저장 승인을 새 입력에 다시 결속하지 않는다.
+    # [수정: 3 조지현] 2026-10-01T01:21:00+09:00 — 지문 없는 저장 승인 재사용을 막는다. 현재 지문을 자동 채워 사람 승인을 생성하지 않는다.
+    bindings = {"data_sha256": data_sha, "reference_sha256": reference_sha, "spec_sha256": spec_sha}
+    missing = [key for key in bindings if not isinstance(approval.get(key), str) or not approval[key]]
+    if missing:
+        raise GateError("APPROVAL_UNBOUND", "자료·기준 식별자·명세 지문이 없는 승인은 사용할 수 없음",
+                        {"approval": kind, "missing": missing, "missing_fields": missing})
+    for key, current in bindings.items():
+        if approval[key] != current:
             raise GateError("APPROVAL_STALE", "승인 뒤 입력이 바뀌어 이전 승인을 쓸 수 없음",
                             {"approval": kind, "field": key, "approved": approval[key], "current": current})
-    # [수정: 0 이영 · Claude] 2026-09-30 23:51 KST — 승인에 지문이 없어도 현재 입력 지문을 bound_*로 적어 "이 입력에 묶여 승인됨"으로 보이게 했다
-    # (1_이채우_경계검증 changed_reference_same_approval). 승인이 실제로 가진 지문만 적고, 없는 것은 unbound_fields에 밝힌다.
-    # [수정: 3 조지현] 2026-10-01T01:21:00+09:00 — 지문 없는 저장 승인 재사용을 막는다. 현재 지문을 자동 채워 사람 승인을 생성하지 않는다.
-    unbound = [key for key in ("data_sha256", "reference_sha256") if approval.get(key) is None]
-    if unbound:
-        raise GateError("APPROVAL_UNBOUND", "승인에 자료·기준 식별자 지문이 필요합니다. 현재 입력을 다시 확인하고 직접 승인하세요.",
-                        {"approval": kind, "missing_fields": unbound})
+    # [1 이채우] 2026-10-01T01:21:52+09:00 — 통합 시 미결속 표시 필드는 유지하되, 미결속 승인은 위에서 차단한다.
     return {"type": kind, "approver": approval["approver"], "basis": approval["basis"],
             "approved_at_kst": approval.get("approved_at_kst"),
-            "bound_data_sha256": approval.get("data_sha256"), "bound_reference_sha256": approval.get("reference_sha256"),
-            "unbound_fields": unbound}
+            **bindings, "bound_data_sha256": data_sha, "bound_reference_sha256": reference_sha,
+            "bound_spec_sha256": spec_sha, "unbound_fields": []}
 
 
 def _alignment(spec, data_sha, header, selected, reference_ids, approvals):
@@ -130,12 +135,15 @@ def _alignment(spec, data_sha, header, selected, reference_ids, approvals):
     if column not in header:
         raise GateError("COLUMN_NOT_FOUND", "식별자 열이 자료에 없음", {"columns": [column]})
     reference_ids = list(reference_ids)
-    reference_sha = hashlib.sha256("\n".join(reference_ids).encode("utf-8")).hexdigest()
+    reference_sha = align.reference_ids_sha256(reference_ids)
     data_ids = [row[column] for _, row in selected]
     report = align.diagnose(data_ids, reference_ids)
     applied = []
 
-    normalize = _approval(approvals, "normalize", data_sha, reference_sha)
+    spec_sha = spec_sha256(spec)
+    # 이미 정렬된 입력에서도 제출된 저장 승인의 만료를 건너뛰지 않는다.
+    normalize = _approval(approvals, "normalize", data_sha, reference_sha, spec_sha)
+    reorder = _approval(approvals, "reorder", data_sha, reference_sha, spec_sha)
     if normalize:
         offered = {(c["from"], c["to"]): c for c in report["normalization_candidates"]}
         requested = approvals["normalize"].get("pairs") or []
@@ -158,7 +166,6 @@ def _alignment(spec, data_sha, header, selected, reference_ids, approvals):
         return _result(spec, data_sha, "BLOCK", "ROW_MEMBERSHIP_MISMATCH", next_action=next_action, **extra)
     if report["status"] == "ALIGNED":
         return _result(spec, data_sha, "MATCH", "ROWS_ALIGNED", **extra)
-    reorder = _approval(approvals, "reorder", data_sha, reference_sha)
     if not reorder:
         return _result(spec, data_sha, "BLOCK", "ROW_ORDER_REORDER_REQUIRED",
                        message="구성은 같지만 순서가 다름. 식별자 기준 재정렬을 사람이 승인해야 계산을 이어갈 수 있음",
