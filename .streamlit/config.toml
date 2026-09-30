@@ -1,0 +1,17 @@
+# [수정: 0 이영 · Claude] 2026-09-30 23:59 KST — Streamlit은 실행한 폴더(저장소 루트, Cloud도 같음)의 .streamlit/config.toml만 읽는다.
+# finals/.streamlit/config.toml은 루트에서 실행하면 적용되지 않아 테마와 업로드 상한이 빠져 있었다.
+[theme]
+base = "light"
+primaryColor = "#172E50"
+backgroundColor = "#F5F7FA"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#152033"
+font = "sans serif"
+
+[server]
+headless = true
+# 보고서 JSON은 256KB 이하(파이프라인 상한)다. 기본 200MB를 두면 공개 화면에서 큰 파일이 메모리에 올라간다.
+maxUploadSize = 1
+
+[browser]
+gatherUsageStats = false

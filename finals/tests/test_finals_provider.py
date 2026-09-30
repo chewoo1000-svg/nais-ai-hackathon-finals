@@ -55,6 +55,9 @@ class Connection:
 @pytest.fixture
 def install_transport(monkeypatch):
     monkeypatch.setattr(provider,"_api_key",lambda:TEST_KEY)
+    # [수정: 0 이영 · Claude] 2026-09-30 23:55 KST — 실호출은 운영자가 NAIS_ALLOW_LIVE_AI=1로 켠 경우에만 허용되므로 시험 환경에서 켜고 호출 수를 초기화한다.
+    monkeypatch.setenv("NAIS_ALLOW_LIVE_AI","1")
+    monkeypatch.setattr(provider,"_LIVE_CALLS",{"n":0})
     created = []
 
     def install(payload, status=200):

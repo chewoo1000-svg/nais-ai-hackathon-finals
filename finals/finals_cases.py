@@ -6,11 +6,17 @@ import hashlib
 import io
 import json
 from pathlib import Path
+import sys
 
 import pandas as pd
 
 AGENT_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = AGENT_ROOT.parent
+for _code_path in (REPO_ROOT, AGENT_ROOT):
+    if str(_code_path) not in sys.path:
+        sys.path.insert(0, str(_code_path))
+# [수정: 0 이영 · Claude] 2026-09-30 23:56 KST — 공급자·모델 이름은 finals_provider 한 곳에서만 정한다.
+from finals_provider import MODEL, PROVIDER
 REGISTRY = REPO_ROOT / "data/evaluation/public_reproduction_cases.json"
 
 # 수정 이유: 정상 자료·통제 오류·근거 부족·입력 변경을 같은 두 원문에 연결한다.
@@ -47,7 +53,17 @@ def _registered_claims() -> dict:
     return {item["claim_id"]: item for item in registry["cases"]}
 
 
-def _proposal(item: dict) -> dict:
+def _selected_count(frame: pd.DataFrame, filters: dict) -> int:
+    # [수정: 0 이영 · Claude] 2026-09-30 23:56 KST — 분모(expected_n)를 등록 자료에서 직접 센다. 기존에는 필터가 있으면 무조건 53으로 적어(BAT 사례의 값)
+    # 필터가 있는 새 등록 사례를 추가하면 잘못된 분모가 조용히 들어갔다.
+    from core.normalization import filter_mask
+    selected = frame
+    for column, value in filters.items():
+        selected = selected[filter_mask(selected[column], value)]
+    return len(selected)
+
+
+def _proposal(item: dict, expected_n: int) -> dict:
     method = "row_count" if item["method"] == "count_rows" else item["method"]
     filters = [{"column": key, "value": value} for key, value in item["filters"].items()]
     return {
@@ -55,7 +71,7 @@ def _proposal(item: dict) -> dict:
         "source_quote": item["source_quote"], "source_location": item["source_location"],
         "method": method, "column": "__dataset__" if method == "row_count" else item["column"],
         "filters": filters,
-        "denominator": {"rule": "filtered_rows" if filters else "all_rows", "expected_n": 53 if filters else item["reported_value"]},
+        "denominator": {"rule": "filtered_rows" if filters else "all_rows", "expected_n": expected_n},
         "missing_policy": item["missing_policy"], "unit": "years" if method == "mean" else "individuals",
         "tolerance": item["tolerance"],
     }
@@ -80,7 +96,7 @@ def load_case(case_id: str) -> dict:
     source = source_path.read_bytes()
     original_frame = pd.read_csv(io.BytesIO(original), delimiter=item["delimiter"])
     frame = original_frame.copy(deep=True)
-    manual = _proposal(item)
+    manual = _proposal(item, _selected_count(original_frame, item["filters"]))
     expected = deepcopy(manual)
     if mutation in {"drop1", "drop2", "changed_data"}:
         drop = 2 if mutation == "drop2" else 1
@@ -121,7 +137,7 @@ def list_replays() -> list[dict]:
     for path in sorted(directory.glob("*.json")):
         try:
             item = json.loads(path.read_text(encoding="utf-8-sig"))
-            if item.get("provider") == "openai" and item.get("model") == "gpt-4.1-mini" and not item.get("mock") and str(item.get("request_id", "")).startswith("resp_") and len(str(item.get("raw_sha256", ""))) == 64 and isinstance(item.get("output"), dict):
+            if item.get("provider") == PROVIDER and item.get("model") == MODEL and not item.get("mock") and str(item.get("request_id", "")).startswith("resp_") and len(str(item.get("raw_sha256", ""))) == 64 and isinstance(item.get("output"), dict):
                 found.append({"path": str(path), "label": path.stem})
         except (OSError, ValueError):
             continue

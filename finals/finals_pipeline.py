@@ -6,6 +6,7 @@ from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json
+import logging
 import math
 from pathlib import Path
 import re
@@ -23,6 +24,8 @@ for code_path in (REPO_ROOT, AGENT_ROOT):
     if str(code_path) not in sys.path:
         sys.path.insert(0, str(code_path))
 from finals_cases import load_case, list_replays
+# [수정: 0 이영 · Claude] 2026-09-30 23:56 KST — 공급자·모델 이름은 finals_provider 한 곳에서만 정한다(영수증 검사가 별도 상수를 들고 있어 모델을 바꾸면 모든 응답이 MODEL_RECEIPT_INVALID가 됐다).
+from finals_provider import MODEL, PROVIDER
 from core.models import Claim, Status
 from core.normalization import filter_mask
 from core.statistics import descriptive
@@ -30,6 +33,7 @@ from core.typed_contracts import build_typed_contract, check_evidence_sufficienc
 from core.verifier import auto_verify, verify
 
 KST = timezone(timedelta(hours=9))
+LOGGER = logging.getLogger("finals.pipeline")
 SIX_CONDITIONS = ("method", "column", "filters", "denominator", "missing_policy", "unit")
 PROPOSAL_SCHEMA = {
     "type": "object", "additionalProperties": False,
@@ -185,6 +189,15 @@ def _new_report(case: dict, mode: str) -> dict:
             "remaining_issues": ["사람의 원문·의미 연결 확인 대기"]}
 
 
+def _log_run(report: dict) -> None:
+    # [수정: 0 이영 · Claude] 2026-09-30 23:56 KST — 실행 결과가 화면 세션에만 남아 Cloud에서 실패 원인을 추적할 수 없었다. 원문·인용·후보 내용은 넣지 않고
+    # 식별자·상태·오류 코드·시간·사용량만 한 줄 JSON으로 남긴다.
+    LOGGER.info(json.dumps({"report_id": report["report_id"], "case_id": report["case_id"], "mode": report["mode"],
+                            "state": report["state"], "can_approve": report["can_approve"], "errors": report["errors"],
+                            "elapsed_ms": report.get("elapsed_ms"), "usage": report["usage"], "llm_executed": report["llm_executed"],
+                            "provider_calls": len(report["provider_calls"])}, ensure_ascii=False, allow_nan=False))
+
+
 def _step(report: dict, name: str, status: str, detail: str = ""):
     report["steps"].append({"step": name, "status": status, "at_kst": now_kst(), "detail": detail})
 
@@ -202,7 +215,7 @@ def _model_call(provider, system: str, payload: dict, schema: dict, report: dict
     if any(type(usage.get(field)) is not int or usage[field] < 0 for field in ("input_tokens", "output_tokens")):
         raise ValueError("MODEL_USAGE_UNAVAILABLE")
     mock = bool(result.get("mock")) or result.get("provider") == "mock"
-    if not mock and (result.get("provider") != "openai" or result.get("model") != "gpt-4.1-mini" or not str(result.get("request_id", "")).startswith("resp_") or not re.fullmatch(r"[0-9a-f]{64}", str(result.get("raw_sha256", "")))):
+    if not mock and (result.get("provider") != PROVIDER or result.get("model") != MODEL or not str(result.get("request_id", "")).startswith("resp_") or not re.fullmatch(r"[0-9a-f]{64}", str(result.get("raw_sha256", "")))):
         raise ValueError("MODEL_RECEIPT_INVALID")
     if not _public_text(result["output"]):
         raise ValueError("SENSITIVE_CONTENT_BLOCKED")
@@ -285,6 +298,7 @@ def run_case(case_id, mode="manual", proposal_text=None, provider=None, replay_p
             _run_general_ai(case, provider, report, started)
             report["elapsed_ms"] = round((perf_counter() - started) * 1000, 2)
             report["finished_at_kst"] = now_kst()
+            _log_run(report)
             return report
         if mode == "manual":
             candidate = deepcopy(case["manual_proposal"]) if proposal_text is None else (_strict_json(proposal_text) if isinstance(proposal_text, str) else deepcopy(proposal_text))
@@ -319,8 +333,14 @@ def run_case(case_id, mode="manual", proposal_text=None, provider=None, replay_p
             _step(report, "recompute", "BLOCKED", "등록 결과 지문 재사용 차단; 가짜 사전 사람 승인 없음")
         elif report["validation"]["valid"]:
             report["calculation"] = _calculate(case, candidate)
-            report["state"] = report["status"] = "SUPPORTED_PREVIEW" if report["calculation"]["within_tolerance"] else "CONFLICT_PREVIEW"
-            report["can_approve"] = report["calculation"]["within_tolerance"]
+            # [수정: 0 이영 · Claude] 2026-09-30 23:56 KST — 선언한 분모와 실제 선택 행 수가 다르면(denominator_matches=False) 수치가 허용오차 안이어도 승인 대상이 아니다.
+            # 기존에는 이 값이 화면에만 표시되고 can_approve·approve_report가 보지 않았다.
+            calculation = report["calculation"]
+            approvable = calculation["within_tolerance"] and calculation["denominator_matches"]
+            report["state"] = report["status"] = "SUPPORTED_PREVIEW" if approvable else "CONFLICT_PREVIEW"
+            report["can_approve"] = approvable
+            if calculation["within_tolerance"] and not calculation["denominator_matches"]:
+                report["remaining_issues"] = ["DENOMINATOR_MISMATCH: 선언한 분모와 실제 선택 행 수가 다름"]
             claim = _claim(case, candidate)
             status, reason, _ = verify(claim, case["dataframe"])
             report["formal_verification"] = {"status": status.value, "reason": reason, "human_semantic_confirmed": False}
@@ -346,6 +366,7 @@ def run_case(case_id, mode="manual", proposal_text=None, provider=None, replay_p
         _step(report, "error", "BLOCKED", error)
     report["elapsed_ms"] = round((perf_counter() - started) * 1000, 2)
     report["finished_at_kst"] = now_kst()
+    _log_run(report)
     return report
 
 
@@ -374,6 +395,8 @@ def approve_report(report: dict, reason: str, confirmed=False) -> dict:
     calculation = _calculate(case, result["proposal"])
     if not calculation["within_tolerance"]:
         raise ValueError("APPROVAL_ARITHMETIC_CONFLICT")
+    if not calculation["denominator_matches"]:
+        raise ValueError("APPROVAL_DENOMINATOR_MISMATCH")
     claim = _claim(case, result["proposal"], confirmed=True)
     status, _, _, _ = auto_verify(claim, case["dataframe"], csv_bytes=case["data_bytes"])
     if status != Status.SUPPORTED:
