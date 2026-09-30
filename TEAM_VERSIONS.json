@@ -22,9 +22,9 @@
     }
   ],
   "this_chat": {
-    "name": "조지현",
-    "version": 3,
-    "commit_prefix": "[3 조지현]"
+    "name": "이영",
+    "version": 0,
+    "commit_prefix": "[0 이영]"
   },
   "timestamp_meaning": {
     "finals_started_at_kst": "본선 작업 기준 시각",
@@ -34,7 +34,7 @@
     "imported_at": "자료를 작업에 실제 반영한 시각"
   },
   "upload_not_before_kst": "2026-09-30T17:40:00+09:00",
-  "_change_note": "2026-10-01T01:25:27+09:00 — 담당3 조지현의 실제 승인 경계 보완·검증·심사 대응 반영. 팀 시작 기준·원출처·타 담당 번호 유지.",
+  "_change_note": "2026-10-01T01:32:41+09:00 — 담당0 이영의 공개 연구 연결 업로드 식별자를 기록. 고정 팀 번호·공식 일정·원출처·이전 담당 실행 기록 유지.",
   "official_project_started_at_kst": "2026-09-30T17:40:00+09:00",
   "submission_deadline_kst": "2026-10-01T09:20:00+09:00"
 }

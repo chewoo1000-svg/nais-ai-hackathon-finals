@@ -39,3 +39,6 @@ team_data/
 runtime/
 /data/audit.db*
 /data/changes.db*
+
+# [수정: 0 이영] 2026-10-01 KST — 선택형 공개 연구 MCP의 호출 간격 DB는 로컬 런타임으로 보관한다.
+/data/.nais_public_rate.sqlite*
