@@ -6,6 +6,7 @@
 """
 from __future__ import annotations
 
+import ast
 import json
 import re
 import sys
@@ -22,10 +23,41 @@ SECRET = re.compile(r"sk-(?!ant-|test)[A-Za-z0-9_-]{20,}|sk-ant-[A-Za-z0-9_-]{20
                     r"|AIza[0-9A-Za-z_-]{30,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----")
 LOCAL_PATH = re.compile(r"[A-Za-z]:[\\/]+Users[\\/]|OneDrive|/Users/[A-Za-z0-9_.-]+/|/home/[A-Za-z0-9_.-]+/")
 EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
-EMAIL_ALLOWED = ("example.com", "example.org", "example.test", "users.noreply.github.com", "noreply.anthropic.com", "noreply@")
+# [수정: 0 이영 · Claude] 2026-10-01 01:48 KST — 예약 최상위 도메인(.invalid·.test·.example, RFC 2606/6761)은 실제 주소가 될 수 없으므로 시험용 가짜 값으로 허용한다.
+# URL의 사용자 정보 부분(https://user@host/)은 이메일이 아니라 SSRF 방어 시험 입력이다.
+EMAIL_ALLOWED = ("example.com", "example.org", "example.test", "example.invalid", ".invalid", ".test", "users.noreply.github.com",
+                 "noreply.anthropic.com", "noreply@")
 # 시험용 가짜 값 규약: 비밀값 형태 문자열은 sk-test…로 시작하고, 이메일은 예약 도메인(example.*)을 쓴다. 그 밖의 값은 실제 값으로 본다.
 # 표기 정리가 버전 표기(v숫자)를 case숫자로 바꿔 URL·API 경로를 깨뜨린 적이 있다(Data.gov). URL 안에 case숫자가 있으면 오염으로 본다.
 CASE_IN_URL = re.compile(r"https?://\S*case\d+|['\"]/[A-Za-z0-9_./-]*case\d+[A-Za-z0-9_./?-]*['\"]")
+
+
+# [수정: 0 이영 · Claude] 2026-10-01 01:37 KST — 배포본에서 `st.write(a) if c else st.caption(b)` 같은 식 문장을 Streamlit 매직이 화면에 다시 써
+# 내부 문서(DeltaGenerator 메서드 목록)가 노출됐다(finals/app.py, core/paper_rankings.py). Streamlit을 쓰는 파일에서 값이 남는 식 문장을 잡는다.
+_MAGIC_NODES = (ast.IfExp, ast.Attribute, ast.Name, ast.Subscript, ast.BoolOp, ast.Compare, ast.BinOp, ast.UnaryOp,
+                ast.Tuple, ast.List, ast.Dict, ast.Set, ast.JoinedStr)
+
+
+def streamlit_magic(text: str) -> list[tuple[int, str]]:
+    """Streamlit을 가져오는 소스에서 화면에 그대로 찍히는 식 문장(독스트링·호출 제외)의 (줄, 소스)를 돌려준다."""
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return []
+    uses_streamlit = any(
+        (isinstance(n, ast.Import) and any(a.name.split(".")[0] == "streamlit" for a in n.names))
+        or (isinstance(n, ast.ImportFrom) and (n.module or "").split(".")[0] == "streamlit")
+        for n in ast.walk(tree))
+    if not uses_streamlit:
+        return []
+    docstrings = {id(scope.body[0]) for scope in ast.walk(tree)
+                  if isinstance(scope, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and scope.body}
+    found = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Expr) and id(node) not in docstrings and (
+                isinstance(node.value, _MAGIC_NODES) or (isinstance(node.value, ast.Constant) and node.value.value is not Ellipsis)):
+            found.append((node.lineno, ast.unparse(node.value)[:70]))
+    return found
 
 
 def iter_text_files(root: Path):
@@ -61,13 +93,19 @@ def check(root: Path = ROOT) -> list[str]:
             if CASE_IN_URL.search(line):
                 findings.append(f"{name}:{number}: URL·API 경로 안의 case숫자(표기 치환 오염 의심)")
             for match in EMAIL.findall(line):
+                if re.search(r"://[^\s'\"]*" + re.escape(match), line):   # URL 사용자 정보
+                    continue
                 if not any(token in match for token in EMAIL_ALLOWED):
                     findings.append(f"{name}:{number}: 이메일 주소")
-        if path.suffix.lower() == ".json":
+        # .devcontainer/devcontainer.json은 주석이 허용되는 JSONC 형식이다(GitHub Codespaces 기본 파일). 엄격 JSON 검사 대상이 아니다.
+        if path.suffix.lower() == ".json" and rel.parts[0] != ".devcontainer":
             try:
                 json.loads(text, object_pairs_hook=_no_duplicates)
             except ValueError as exc:
                 findings.append(f"{name}: JSON 오류 {exc}")
+        if path.suffix.lower() == ".py":
+            for number, source in streamlit_magic(text):
+                findings.append(f"{name}:{number}: Streamlit 매직(식 문장이 화면에 출력됨): {source}")
     root_req, finals_req = root / "requirements.txt", root / "finals" / "requirements.txt"
     if root_req.exists() and finals_req.exists() and root_req.read_bytes() != finals_req.read_bytes():
         findings.append("finals/requirements.txt가 루트 requirements.txt와 다름(배포는 루트 파일을 쓴다)")

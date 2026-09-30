@@ -88,7 +88,11 @@ def render_rankings(actor):
             st.write(item['title'])
             from core.title_translation import korean_title
             translated=korean_title(item['title'])
-            st.write(translated) if translated else st.caption('한국어 번역 준비 중')
+            # [수정: 0 이영 · Claude] 2026-10-01 01:32 KST — 식 문장 `a() if c else b()`은 Streamlit 매직이 반환값(DeltaGenerator)을 화면에 다시 써서 내부 문서가 노출됐다. if/else 문장으로 바꾼다.
+            if translated:
+                st.write(translated)
+            else:
+                st.caption('한국어 번역 준비 중')
             st.caption('최종 색인: '+str(item['indexed_at'] or '미제공'))
             if not item['freshness_verified']:st.caption('오래되었거나 날짜가 불명확한 지표 · 현재 순위 확인 불가')
             st.link_button('논문 원문 보기',item['url'],key=key+'_doi_'+str(index))
